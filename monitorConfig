@@ -1,0 +1,1 @@
+xrandr --output DVI-D-0 --mode 1920x1080 --rate 60.00 --output DP-0 --mode 2560x1440 --rate 144.00 --primary --left-of DVI-D-0

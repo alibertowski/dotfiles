@@ -16,11 +16,11 @@ super + Escape
 
 # Volume control
 XF86AudioLowerVolume
-	amixer set Master 2%-
+	pactl set-sink-volume @DEFAULT_SINK@ -2%
 XF86AudioRaiseVolume
-	amixer set Master 2%+
+	pactl set-sink-volume @DEFAULT_SINK@ +2%
 XF86AudioMute
-	amixer set Master toggle
+	pactl set-sink-mute @DEFAULT_SINK@ toggle
 
 #
 # bspwm hotkeys

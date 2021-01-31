@@ -1,7 +1,7 @@
 # Linux-Dotfiles
 Just my attempt at a dotfiles
 
-# First Things to Install on a new Arch Installation to Remind me
+# Initial Programs to Install
 * Microcode
 * SSD trim
 * WM (i3 or BSPWM)

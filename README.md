@@ -1,10 +1,10 @@
 # Linux-Dotfiles
 Just my attempt at a dotfiles
 
-# Initial Programs to Install
+# Initial Programs to Install/Things to do
 * Microcode
 * SSD trim
-* WM (i3 or BSPWM)
+* WM (BSPWM)
 * Pywal
 * Xorg
 * Nvidia
@@ -12,4 +12,4 @@ Just my attempt at a dotfiles
 * Polybar
 * Notification Daemon
 * Pulseaudio
-* Mouse acceleration
+* Neovim

@@ -8,7 +8,4 @@
 alias ls='ls --color=auto'
 PS1='[\u@\h \W]\$ '
 
-# Pywal
 (cat ~/.cache/wal/sequences &)
-
-neofetch

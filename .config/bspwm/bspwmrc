@@ -24,10 +24,10 @@ bspc rule -a Kupfer.py focus=on
 bspc rule -a Screenkey manage=off
 
 # Resolution
-xrandr --output HDMI-0 --mode 1920x1080 --rate 60.00 --output DP-4 --mode 2560x1440 --rate 144.00 --primary --left-of HDMI-0
+#xrandr --output HDMI-0 --mode 1920x1080 --rate 60.00 --output DP-4 --mode 2560x1440 --rate 144.00 --primary --left-of HDMI-0
 
 # Wallpaper
-feh --bg-scale ~/Downloads/image.jpg
+feh --bg-scale ~/big-stuff/pictures/leaf.png
 
 # Polybar
 $HOME/.config/polybar/launch.sh

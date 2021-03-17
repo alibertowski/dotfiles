@@ -27,7 +27,7 @@ bspc rule -a Screenkey manage=off
 #xrandr --output HDMI-0 --mode 1920x1080 --rate 60.00 --output DP-4 --mode 2560x1440 --rate 144.00 --primary --left-of HDMI-0
 
 # Wallpaper
-feh --bg-scale ~/big-stuff/pictures/leaf.png
+feh --bg-scale ~/big-stuff/pictures/fox.jpg
 
 # Polybar
 $HOME/.config/polybar/launch.sh

@@ -11,3 +11,5 @@ polybar mon-one 2>&1 | tee -a /tmp/mon-one-bar.log & disown
 polybar mon-two  2>&1 | tee -a /tmp/mon-two-bar.log & disown
 
 echo "Bars launched..."
+
+nm-applet

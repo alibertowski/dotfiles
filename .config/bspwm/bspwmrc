@@ -9,6 +9,7 @@ bspc config border_width         2
 bspc config window_gap           5
 bspc config split_ratio          0.52
 bspc config pointer_action1 move
+bspc config pointer_motion_interval 7
 
 . "${HOME}/.cache/wal/colors.sh"
 bspc config normal_border_color "$color1"
@@ -33,3 +34,4 @@ $HOME/.config/polybar/launch.sh
 
 # Dunst
 /usr/bin/dunst
+

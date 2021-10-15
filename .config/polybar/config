@@ -28,39 +28,39 @@ last-color = ${xrdb:color3:#222}
 text-color = #ffffff
 
 [bar/base]
-monitor = ${env:MONITOR:DP-4}
-
 override-redirect = false
 bottom = false
 fixed-center = true
 
-width = 100%
-height = 30
+width = 98%
+height = 35
 
-offset-x = 0
-offset-y = 0
+offset-x = 1% 
+offset-y = 9
 
-background=${colors.background}
+background=#e60b0706
+;background=${colors.background}
 foregrond=${colors.foreground}
 
-radius = 0.0
-line-size = 0
+radius = 15.0
+line-size = 2
 line-color = #f00
 
-border-bottom-size = 1.0
+border-bottom-size = 0.0
 border-color = ${colors.background-alt}
 
-padding = 1
-module-margin-right = 3
+padding = 2
+module-margin = 1
 
-font-0 = Iosevka:size=11:style=Regular;3
-font-1 = Font Awesome 5 Free Regular:style=Regular;2
+font-0 = Iosevka:size=11:style=Light;3
+font-1 = Font Awesome 5 Free Regular:size=11:style=Regular;2
 font-2 = Font Awesome 5 Free Solid:size=11:style=Solid;2
 
 modules-left = bspwm
-modules-right = pulseaudio eth date
+modules-center = title
+modules-right = filesystem pulseaudio cpu memory eth date
 
-separator = 
+separator = |
 dim-value = 1.0
 
 wm-restack = bspwm
@@ -83,6 +83,24 @@ tray-padding = 1
 [module/xwindow]
 type = internal/xwindow
 label = %title:0:30:...%
+
+[module/title]
+type = internal/xwindow
+
+format = <label>
+format-padding = 4
+
+; Available tokens:
+;   %title%
+; Default: %title%
+label = "%title%"
+label-maxlen = 65
+
+; Used instead of label when there is no window title
+; Available tokens:
+;   None
+; label-empty = None
+; label-empty-foreground = #707880
 
 [module/xkeyboard]
 type = internal/xkeyboard
@@ -109,30 +127,29 @@ mount-0 = /
 label-mounted = %{F#0a81f5}%mountpoint%%{F-}: %percentage_used%%
 label-unmounted = %mountpoint% not mounted
 label-unmounted-foreground = ${colors.foreground-alt}
-label-mounted-background = ${colors.background-alt}
 
 [module/bspwm]
 type = internal/bspwm
 
-label-focused = %{T3}
+label-focused = %name%
 ;label-focused-background = #343434
 label-focused-foreground = ${colors.text-color}
 label-focused-underline= ${colors.primary}
-label-focused-padding-right = 1
+label-focused-padding = 1
 
-label-occupied = %{T3}
+label-occupied = %name%
 ;label-occupied-background = #343434
 label-occupied-foreground = ${colors.last-color}
-label-occupied-padding-right = 1
+label-occupied-padding = 1
 
 label-urgent = %index%!
 ;label-urgent-background = #343434
-label-urgent-padding-right = 1
+label-urgent-padding = 1
 
-label-empty = %{T2}
+label-empty = %name%
 ;label-empty-background = #343434
 label-empty-foreground = ${colors.foreground}
-label-empty-padding-right = 1
+label-empty-padding = 1
 
 ; Separator in between workspaces
 ; label-separator = |
@@ -215,18 +232,15 @@ type = internal/cpu
 interval = 2
 format-prefix = " "
 format-prefix-foreground = ${colors.foreground-alt}
-format-underline = #f90000
-label = %percentage:2%%
-label-background = ${colors.background-alt}
+label =  %percentage%%
+; label-background = ${colors.background-alt}
 
 [module/memory]
 type = internal/memory
 interval = 2
-format-prefix = " "
-format-prefix-foreground = ${colors.foreground-alt}
-format-underline = #4bffdc
-label = %percentage_used%%
-label-background = ${colors.background-alt}
+;format-prefix = " "
+;format-prefix-foreground = ${colors.foreground-alt}
+label =  %percentage_used%%
 
 [module/wlan]
 type = internal/network
@@ -255,7 +269,7 @@ type = internal/network
 interface = enp6s0
 interval = 3.0
 
-format-connected-underline = #55aa55
+format-connected-underline = ${colors.primary}
 format-connected-prefix = " "
 format-connected-prefix-foreground = ${colors.text-color}
 label-connected =  Online
@@ -279,10 +293,9 @@ time-alt = %H:%M:%S
 
 format-prefix = 
 format-prefix-foreground = ${colors.foreground-alt}
-format-underline = #0a6cf5
 
-label =  %date%, %time%
-label-background = ${colors.background}
+label = %date%, %time%
+; label-background = ${colors.background}
 label-foreground = ${colors.text-color}
 
 [module/pulseaudio]
@@ -428,10 +441,10 @@ screenchange-reload = true
 ;compositing-background = screen
 ;compositing-foreground = source
 ;compositing-border = over
-;pseudo-transparency = false
+;pseudo-transparency = true
 
 [global/wm]
-margin-top = 5
-margin-bottom = 5
+margin-top = 2
+margin-bottom = 2
 
 ; vim:ft=dosini

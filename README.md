@@ -22,7 +22,7 @@ Just my attempt at a dotfiles
 * picom
 * polybar
 * rofi
-* Xorg and xorg-xinit
+* xorg and xorg-xinit
 * feh - bspwm
 * dunst - bspwm
 * Iosevka Terminal Font - kitty

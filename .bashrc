@@ -12,4 +12,3 @@ alias vim=nvim
 PS1=' >> '
 
 (cat ~/.cache/wal/sequences &)
-

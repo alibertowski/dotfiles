@@ -1,5 +1,5 @@
 # dotfiles
-Just my attempt at a dotfiles
+Just my attempt at a dotfiles (Not done yet).
 
 # Dependencies
 * bspwm

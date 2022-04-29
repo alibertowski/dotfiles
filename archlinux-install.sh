@@ -8,21 +8,12 @@
 #	Secure Boot
 #	New bootloader?
 #	Test unmounted /boot with UEFI
-
 #	mount /boot when pacman updates
+#	Early KMS setup
 
+#	Separate boot parameters for GRUB in normal/recovery mode
 #	Support Wi-Fi - Not urgent
 #	Make sure BIOS works with extended partitions
-
-# TODO Easy:
-#	nowatchdog
-#	Improving performance page - https://wiki.archlinux.org/title/Improving_performance
-#	Security page - https://wiki.archlinux.org/title/Security
-
-#	Sudo permissions in post-install
-#	Pipewire
-#	Multilib 32bit support
-#	Pacman colors
 
 readonly HOSTNAME="retro"
 readonly TIMEZONE_REGION="America"
@@ -61,7 +52,7 @@ readonly ADDITIONAL_MOUNTPOINT=("/mnt/root/test" "/mnt/home/alex")
 readonly ADDITIONAL_ENCRYPTION_MAPPING=("test" "other")
 
 readonly Addons=("DisableWatchdog")
-PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw grub python python2 man-db man-pages texinfo git polkit dhcpcd htop)
+PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw grub python python2 man-db man-pages texinfo git polkit dhcpcd htop) # TODO: Remove grub if not used in UEFI
 KernelParameters=("loglevel=3" "quiet")
 
 validate_variables() {
@@ -292,8 +283,17 @@ pre_checks() {
 	timedatectl set-ntp true
 }
 
+install_addons() {
+	for addon in "${Addons[@]}"; do
+		if [ "$addon" = "DisableWatchdog" ]; then
+			KernelParameters[${#KernelParameters[@]}]="nowatchdog"
+			printf "blacklist iTCO_wdt\n" > /etc/modprobe.d/nowatchdog.conf
+		fi
+	done
+}
+
 os_installation() {
-	pacstrap /mnt "${PackagesNeeded[@]}" > archlinux-install_pacstrap.log 2>&1
+	pacstrap /mnt "${PackagesNeeded[@]}"
 	umount -v /mnt/boot
 	genfstab -U /mnt >> /mnt/etc/fstab
 	if [ "$BOOT_DRIVE" != "root" ]; then
@@ -309,6 +309,8 @@ os_installation() {
 
 	echo "$HOSTNAME" > /mnt/etc/hostname
 	printf '127.0.0.1\tlocalhost\n::1\tlocalhost\n127.0.1.1\t%s\n' "$HOSTNAME" > /mnt/etc/hosts
+
+	install_addons
 
 	# TODO: Make sure this is correct
 	if [ "$GPU" = "nvidia" ]; then

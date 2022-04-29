@@ -4,20 +4,23 @@
 # Run the 'archlinux-post_install.sh' script once this is done in the freshly installed system
 
 # TODO:
-#	Encryption
-#	Fix UEFI
+#	Fix UEFI partitioning
 #	Secure Boot
 #	New bootloader?
-#	Support Wi-Fi - Not urgent
-#	Mount /boot when pacman updates
 #	Test unmounted /boot with UEFI
 
+#	mount /boot when pacman updates
+
+#	Support Wi-Fi - Not urgent
+#	Make sure BIOS works with extended partitions
+
 # TODO Easy:
+#	nowatchdog
 #	Improving performance page - https://wiki.archlinux.org/title/Improving_performance
 #	Security page - https://wiki.archlinux.org/title/Security
+
 #	Sudo permissions in post-install
 #	Pipewire
-#	nowatchdog
 #	Multilib 32bit support
 #	Pacman colors
 
@@ -55,10 +58,13 @@ readonly ADDITIONAL_SIZE2=("100%" "100%")
 readonly ADDITIONAL_LABEL=("TestDrive" "OtherDrive")
 readonly ADDITIONAL_PARTITION=("3" "2")
 readonly ADDITIONAL_MOUNTPOINT=("/mnt/root/test" "/mnt/home/alex")
+readonly ADDITIONAL_ENCRYPTION_MAPPING=("test" "other")
 
+readonly Addons=("DisableWatchdog")
 PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw grub python python2 man-db man-pages texinfo git polkit dhcpcd htop)
+KernelParameters=("loglevel=3" "quiet")
 
-function validate_variables() {
+validate_variables() {
 	if [ "$DEBUG" == "y" ]; then
 		echo "Debug mode is turned on. Set the 'DEBUG' variable to something other than 'y' to run the installation"
 		exit 2
@@ -95,7 +101,7 @@ function validate_variables() {
 	fi
 }
 
-function partition_drives() {
+partition_drives() {
 	# Check each drive type for their device
 	local drivesToPart=()
 
@@ -181,10 +187,10 @@ function partition_drives() {
 					cryptsetup -y -v luksFormat "${ROOT_DRIVE}${ROOT_PARTITION}"
 					cryptsetup open "${ROOT_DRIVE}${ROOT_PARTITION}" root
 					mkfs.ext4 -L "$ROOT_LABEL" /dev/mapper/root
-					mount /dev/mapper/root /mnt
+					mount -v /dev/mapper/root /mnt
 				else
 					mkfs.ext4 -L "$ROOT_LABEL" "${ROOT_DRIVE}${ROOT_PARTITION}"
-					mount "${ROOT_DRIVE}${ROOT_PARTITION}" /mnt
+					mount -v "${ROOT_DRIVE}${ROOT_PARTITION}" /mnt
 				fi
 
 				currentPartition=$((currentPartition + 1))
@@ -203,19 +209,15 @@ function partition_drives() {
 						parted -s "$drive" mkpart primary ext4 "${ADDITIONAL_SIZE1[$i]}" "${ADDITIONAL_SIZE2[$i]}"
 					fi
 
-					# TODO: Change the encrypted name mapping
 					if [ "$ENCRYPT" = "y" ]; then
-						cryptsetup -y -v luksFormat "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}"
-						cryptsetup open "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" root
-						mkfs.ext4 -L "${ADDITIONAL_LABEL[$i]}" /dev/mapper/root
-						mkdir -p "${ADDITIONAL_MOUNTPOINT[$i]}"
-						mount /dev/mapper/root "${ADDITIONAL_MOUNTPOINT[$i]}"
-					else # TODO: Fix this bug
+						dd bs=512 count=4 if=/dev/random of=/root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" iflag=fullblock
+						chmod 600 /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
+						
+						cryptsetup -v luksFormat "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
+						cryptsetup open "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" -d /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
+						mkfs.ext4 -L "${ADDITIONAL_LABEL[$i]}" "/dev/mapper/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
+					else
 						mkfs.ext4 -L "${ADDITIONAL_LABEL[$i]}" "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}"
-						echo "${ADDITIONAL_MOUNTPOINT[$i]}"
-						mkdir -p "${ADDITIONAL_MOUNTPOINT[$i]}"
-						echo "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}"
-						mount "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" "${ADDITIONAL_MOUNTPOINT[$i]}"
 					fi
 
 					currentPartition=$((currentPartition + 1))
@@ -227,9 +229,6 @@ function partition_drives() {
 				parted -s "$drive" set "$EFI_PARTITION" esp on
 
 				mkfs.fat -F 32 -n "$EFI_LABEL" "${EFI_DRIVE}${EFI_PARTITION}"
-				mkdir -p /mnt/efi
-				mount "${EFI_DRIVE}${EFI_PARTITION}" /mnt/efi
-
 				currentPartition=$((currentPartition + 1))
 			fi
 
@@ -243,14 +242,34 @@ function partition_drives() {
 				fi
 
 				mkfs.ext4 -L "$BOOT_LABEL" "${BOOT_DRIVE}${BOOT_PARTITION}"
-
 				currentPartition=$((currentPartition + 1))
 			fi
 		done
 	done
+
+	if [ "$BOOT_DRIVE" != "root" ]; then
+		mkdir -p /mnt/boot
+		mount -v "${BOOT_DRIVE}${BOOT_PARTITION}" /mnt/boot
+	fi
+
+	if [ "$IS_UEFI" = "true" ]; then
+		mkdir -p /mnt/efi
+		mount -v "${EFI_DRIVE}${EFI_PARTITION}" /mnt/efi
+	fi
+
+	for (( i=0; i<${#ADDITIONAL_DRIVES[@]}; i++ )); 
+	do
+		if [ "$ENCRYPT" = "y" ]; then
+			mkdir -p "${ADDITIONAL_MOUNTPOINT[$i]}"
+			mount -v "/dev/mapper/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" "${ADDITIONAL_MOUNTPOINT[$i]}"
+		else
+			mkdir -p "${ADDITIONAL_MOUNTPOINT[$i]}"
+			mount -v "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" "${ADDITIONAL_MOUNTPOINT[$i]}"
+		fi
+	done
 }
 
-function pre_checks() {
+pre_checks() {
 	# Get CPU ucode
 	if [ "$CPU_TYPE" = "amd" ]; then
 		PackagesNeeded[${#PackagesNeeded[@]}]="amd-ucode"
@@ -273,18 +292,12 @@ function pre_checks() {
 	timedatectl set-ntp true
 }
 
-function os_installation() {
-	if [ "$BOOT_DRIVE" != "root" ]; then
-		mkdir -p /mnt/boot
-		mount "${BOOT_DRIVE}${BOOT_PARTITION}" /mnt/boot
-	fi
-
+os_installation() {
 	pacstrap /mnt "${PackagesNeeded[@]}" > archlinux-install_pacstrap.log 2>&1
-	umount /mnt/boot
+	umount -v /mnt/boot
 	genfstab -U /mnt >> /mnt/etc/fstab
 	if [ "$BOOT_DRIVE" != "root" ]; then
-		mkdir -p /mnt/boot
-		mount "${BOOT_DRIVE}${BOOT_PARTITION}" /mnt/boot
+		mount -v "${BOOT_DRIVE}${BOOT_PARTITION}" /mnt/boot
 	fi
 	
 	arch-chroot /mnt ln -sf /usr/share/zoneinfo/$TIMEZONE_REGION/$TIMEZONE_CITY /etc/localtime
@@ -300,14 +313,26 @@ function os_installation() {
 	# TODO: Make sure this is correct
 	if [ "$GPU" = "nvidia" ]; then
 		sed -i "s/MODULES=()/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/" /mnt/etc/mkinitcpio.conf
-		sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 quiet\"%GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 quiet nvidia-drm.modeset=1\"%"
+		KernelParameters[${#KernelParameters[@]}]="nvidia-drm.modeset=1"
 		printf "[Trigger]\nOperation=Install\nOperation=Upgrade\nOperation=Remove\nType=Package\nTarget=nvidia\nTarget=linux\n# Change the linux part above and in the Exec line if a different kernel is used\n\n[Action]\nDescription=Update Nvidia module in initcpio\nDepends=mkinitcpio\nWhen=PostTransaction\nNeedsTargets\nExec=/bin/sh -c 'while read -r trg; do case \$trg in linux) exit 0; esac; done; /usr/bin/mkinitcpio -P'\n" > /mnt/etc/pacman.d/hooks/nvidia.hook
 	fi
 
-	# TODO: Correct this
 	if [ "$ENCRYPT" = "y" ]; then
-		sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 quiet\"%GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 quiet cryptdevice=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}${ROOT_PARTITION}):root root=/dev/mapper/root\"%" /mnt/etc/default/grub
+		# Swap encryption
+		printf "swap\t%s\t/dev/urandom\tswap,cipher=aes-cbc-essiv:sha256,size=256\n" "$(find -L /dev/disk -samefile ${SWAP_DRIVE}${SWAP_PARTITION} | head -n1)" | tee -a /mnt/etc/crypttab
+		sed -i "s%UUID=$(lsblk -dno UUID ${SWAP_DRIVE}${SWAP_PARTITION})%/dev/mapper/swap%" /mnt/etc/fstab
+
+		# Additional Drive encryption
+		for (( i=0; i<${#ADDITIONAL_DRIVES[@]}; i++ )); 
+		do
+			mv /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" /mnt/root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}.key"
+			printf "%s\tUUID=$(lsblk -dno UUID "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}")\t%s\n" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" "/root/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}.key" | tee -a /mnt/etc/crypttab
+		done
+
 		sed -i "s/HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)/HOOKS=(base udev autodetect keyboard modconf block encrypt filesystems keyboard fsck)/" /mnt/etc/mkinitcpio.conf	
+
+		KernelParameters[${#KernelParameters[@]}]="cryptdevice=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}${ROOT_PARTITION}):root"
+		KernelParameters[${#KernelParameters[@]}]="root=/dev/mapper/root"
 		arch-chroot /mnt mkinitcpio -P
 	fi
 
@@ -322,9 +347,10 @@ function os_installation() {
 		else
 			arch-chroot /mnt grub-install --target=i386-pc "$BOOT_DRIVE"
 		fi
-	fi
 
-	arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+		sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 quiet\"%GRUB_CMDLINE_LINUX_DEFAULT=\"${KernelParameters[*]}\"%" /mnt/etc/default/grub
+		arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+	fi
 }
 
 validate_variables

@@ -52,7 +52,7 @@ readonly ADDITIONAL_MOUNTPOINT=("/mnt/root/test" "/mnt/home/alex")
 readonly ADDITIONAL_ENCRYPTION_MAPPING=("test" "other")
 
 readonly Addons=("DisableWatchdog")
-PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw grub python python2 man-db man-pages texinfo git polkit dhcpcd htop) # TODO: Remove grub if not used in UEFI
+PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw grub python python2 man-db man-pages texinfo git polkit dhcpcd htop base-devel) # TODO: Remove grub if not used in UEFI
 KernelParameters=("loglevel=3" "quiet")
 
 validate_variables() {

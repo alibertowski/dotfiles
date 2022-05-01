@@ -7,6 +7,7 @@
 #   Add guide for multiple monitors
 
 readonly VM="y"
+readonly GPU="other"
 readonly USER_NAME="alex"
 readonly INTERFACE
 INTERFACE=$(ls /sys/class/net/en*)
@@ -44,3 +45,11 @@ pacman -S --noconfirm pipewire lib32-pipewire wireplumber pipewire-alsa pipewire
 
 echo "Enter password for: ${USER_NAME}"
 passwd $USER_NAME
+
+xorg_install() {
+    pacman -S --noconfirm xorg xorg-xinit bspwm
+}
+
+if [ "$GPU" = "other" ]; then
+    xorg_install
+fi

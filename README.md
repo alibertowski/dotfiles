@@ -21,3 +21,4 @@ Just my attempt at a dotfiles. This repository contains two scripts that will fu
 * Finish extended partitions for BIOS
 * Support Wi-Fi
 * Add guide for multi-monitor setups
+* Finish Validation

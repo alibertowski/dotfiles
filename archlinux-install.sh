@@ -4,56 +4,68 @@
 # Run the 'archlinux-post_install.sh' script once this is done in the freshly installed system
 
 # TODO:
-#	Fix UEFI partitioning
 #	Secure Boot
-#	New bootloader?
-#	Test unmounted /boot with UEFI
-#	mount /boot when pacman updates
 #	Early KMS setup
 
-#	Separate boot parameters for GRUB in normal/recovery mode
-#	Support Wi-Fi - Not urgent
-#	Make sure BIOS works with extended partitions
+#	Support Wi-Fi
+#	Make sure BIOS works with extended partitions - Not urgent
+#	Validation: Fat32 only has capital labels, etc - Not urgent
+
+# Testing Notes:
+#	Log installation and check any errors
+#	Make sure each line does what it's supposed to do
 
 readonly HOSTNAME="retro"
 readonly TIMEZONE_REGION="America"
 readonly TIMEZONE_CITY="New_York"
 readonly CPU_TYPE="amd"
 readonly ENCRYPT="y"
+readonly VM="y"
 readonly DEBUG="y"
-readonly GPU="other"
 
 # Boot, Root, Swap, EFI, Additonal Drives
 readonly SWAP_DRIVE="/dev/sdb"
 readonly SWAP_TYPE="drive" # Can be one of the following: (drive or none)
 readonly SWAP_SIZE=("1MiB" "1GiB")
 readonly SWAP_LABEL="Swap"
+readonly SWAP_NAME="LinuxSwap"
 readonly SWAP_PARTITION="1"
 
 # Drive, Size, Name, Partition
 readonly ROOT_DRIVE="/dev/sda"
-readonly ROOT_SIZE=("1GiB" "8GiB")
+readonly ROOT_SIZE=("2GiB" "8GiB")
 readonly ROOT_LABEL="Root"
-readonly ROOT_PARTITION="2"
+readonly ROOT_NAME="LinuxRoot"
+readonly ROOT_PARTITION="3"
 
 # Drive or root (Included in root), Size, Name
 readonly BOOT_DRIVE="/dev/sda"
 readonly BOOT_SIZE=("1MiB" "1GiB")
-readonly BOOT_LABEL="Boot"
+readonly BOOT_LABEL="BOOT"
+readonly BOOT_NAME="LinuxBoot"
 readonly BOOT_PARTITION="1"
+
+# Drive, Size, Name, Partition
+readonly EFI_DRIVE="/dev/sda"
+readonly EFI_SIZE=("1GiB" "2GiB")
+readonly EFI_LABEL="EFI"
+readonly EFI_NAME="EFI"
+readonly EFI_PARTITION="2"
 
 # Drive, Size, Name, Partition
 readonly ADDITIONAL_DRIVES=("/dev/sda" "/dev/sdb")
 readonly ADDITIONAL_SIZE1=("8GiB" "1GiB")
 readonly ADDITIONAL_SIZE2=("100%" "100%")
 readonly ADDITIONAL_LABEL=("TestDrive" "OtherDrive")
-readonly ADDITIONAL_PARTITION=("3" "2")
+readonly ADDITIONAL_PARTITION=("4" "2")
+readonly ADDITIONAL_NAME=("Test" "Other")
 readonly ADDITIONAL_MOUNTPOINT=("/mnt/root/test" "/mnt/home/alex")
 readonly ADDITIONAL_ENCRYPTION_MAPPING=("test" "other")
 
 readonly Addons=("DisableWatchdog")
-PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw grub python python2 man-db man-pages texinfo git polkit dhcpcd htop base-devel) # TODO: Remove grub if not used in UEFI
-KernelParameters=("loglevel=3" "quiet")
+PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw python python2 man-db man-pages texinfo git polkit dhcpcd htop base-devel)
+KernelParameters=()
+NonFallbackParameters=("loglevel=3" "quiet")
 
 validate_variables() {
 	if [ "$DEBUG" == "y" ]; then
@@ -83,11 +95,6 @@ validate_variables() {
 
 	if [[ "$ENCRYPT" != "y" && "$ENCRYPT" != "n" ]]; then
 		echo "'ENCRYPT' variable must be 'y' or 'n'"
-		exit 2
-	fi
-
-	if [[ "$GPU" != "nvidia" && "$GPU" != "other" ]]; then
-		echo "'GPU' variable must be 'nvidia' or 'other'"
 		exit 2
 	fi
 }
@@ -154,15 +161,15 @@ partition_drives() {
 			# Partitioning any needed drives
 			if [[ "$SWAP_DRIVE" = "$drive" && $SWAP_PARTITION -eq $currentPartition ]]; then
 				if [ "$IS_UEFI" = "true" ]; then
-					echo "working?"
 					parted -s "$drive" mkpart "$SWAP_NAME" linux-swap "${SWAP_SIZE[0]}" "${SWAP_SIZE[1]}"
-					echo "maybe?"
 				else
 					parted -s "$drive" mkpart primary linux-swap "${SWAP_SIZE[0]}" "${SWAP_SIZE[1]}"
 				fi
 
-				mkswap -L "$SWAP_LABEL" "${SWAP_DRIVE}${SWAP_PARTITION}"
-				swapon "${SWAP_DRIVE}${SWAP_PARTITION}"
+				if [ "$ENCRYPT" = "n" ]; then
+					mkswap -L "$SWAP_LABEL" "${SWAP_DRIVE}${SWAP_PARTITION}"
+					swapon "${SWAP_DRIVE}${SWAP_PARTITION}"
+				fi
 
 				currentPartition=$((currentPartition + 1))
 			fi
@@ -195,7 +202,7 @@ partition_drives() {
 			do
 				if [[ "${ADDITIONAL_DRIVES[$i]}" = "$drive" && "${ADDITIONAL_PARTITION[$i]}" -eq "$currentPartition" ]]; then
 					if [ "$IS_UEFI" = "true" ]; then
-						parted -s "$drive" mkpart "${ADDITIONAL_LABEL[$i]}" ext4 "${ADDITIONAL_SIZE1[$i]}" "${ADDITIONAL_SIZE2[$i]}"
+						parted -s "$drive" mkpart "${ADDITIONAL_NAME[$i]}" ext4 "${ADDITIONAL_SIZE1[$i]}" "${ADDITIONAL_SIZE2[$i]}"
 					else
 						parted -s "$drive" mkpart primary ext4 "${ADDITIONAL_SIZE1[$i]}" "${ADDITIONAL_SIZE2[$i]}"
 					fi
@@ -204,7 +211,7 @@ partition_drives() {
 						dd bs=512 count=4 if=/dev/random of=/root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" iflag=fullblock
 						chmod 600 /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
 						
-						cryptsetup -v luksFormat "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
+						cryptsetup -qv luksFormat "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
 						cryptsetup open "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" -d /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
 						mkfs.ext4 -L "${ADDITIONAL_LABEL[$i]}" "/dev/mapper/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
 					else
@@ -225,14 +232,15 @@ partition_drives() {
 
 			if [[ "$BOOT_DRIVE" = "$drive" && "$BOOT_PARTITION" -eq "$currentPartition" ]]; then
 				if [ "$IS_UEFI" = "true" ]; then
-					parted -s "$drive" mkpart "$BOOT_NAME" ext4 "${BOOT_SIZE[0]}" "${BOOT_SIZE[1]}"
+					parted -s "$drive" mkpart "$BOOT_NAME" fat32 "${BOOT_SIZE[0]}" "${BOOT_SIZE[1]}"
 					parted -s "$drive" set "$BOOT_PARTITION" bls_boot on
+					mkfs.fat -F 32 -n "$BOOT_LABEL" "${BOOT_DRIVE}${BOOT_PARTITION}"
 				else
 					parted -s "$drive" mkpart primary ext4 "${BOOT_SIZE[0]}" "${BOOT_SIZE[1]}"
 					parted -s "$drive" set "$BOOT_PARTITION" boot on
+					mkfs.ext4 -L "$BOOT_LABEL" "${BOOT_DRIVE}${BOOT_PARTITION}"
 				fi
 
-				mkfs.ext4 -L "$BOOT_LABEL" "${BOOT_DRIVE}${BOOT_PARTITION}"
 				currentPartition=$((currentPartition + 1))
 			fi
 		done
@@ -273,7 +281,8 @@ pre_checks() {
 	if [ -d /sys/firmware/efi/efivars ]; then
 		echo "We booted in UEFI mode"
 		IS_UEFI=true
-		PackagesNeeded[${#PackagesNeeded[@]}]="efibootmgr"
+	else
+		PackagesNeeded[${#PackagesNeeded[@]}]="grub"
 	fi
 
 	if [ "$ENCRYPT" = "y" ]; then
@@ -287,18 +296,34 @@ install_addons() {
 	for addon in "${Addons[@]}"; do
 		if [ "$addon" = "DisableWatchdog" ]; then
 			KernelParameters[${#KernelParameters[@]}]="nowatchdog"
-			printf "blacklist iTCO_wdt\n" > /etc/modprobe.d/nowatchdog.conf
+			printf "blacklist iTCO_wdt\n" > /mnt/etc/modprobe.d/nowatchdog.conf
 		fi
 	done
 }
 
 os_installation() {
 	pacstrap /mnt "${PackagesNeeded[@]}"
-	umount -v /mnt/boot
+
+	if [ "$BOOT_DRIVE" != "root" ]; then
+		umount -v /mnt/boot
+	fi
+	if [ "$IS_UEFI" = "true" ]; then
+		umount -v /mnt/efi
+	fi
+
 	genfstab -U /mnt >> /mnt/etc/fstab
+
+	mkdir -p /mnt/etc/pacman.d/hooks
 	if [ "$BOOT_DRIVE" != "root" ]; then
 		mount -v "${BOOT_DRIVE}${BOOT_PARTITION}" /mnt/boot
+		printf "[Trigger]\nType = Package\nOperation = Upgrade\nTarget = *\n\n[Action]\nDescription = Mounting boot\nWhen = PreTransaction\nExec = /usr/bin/mount -v %s /boot\n" "${BOOT_DRIVE}${BOOT_PARTITION}" > /mnt/etc/pacman.d/hooks/01-mount-boot.hook
 	fi
+	if [ "$IS_UEFI" = "true" ]; then
+		mount -v "${EFI_DRIVE}${EFI_PARTITION}" /mnt/efi
+		printf "[Trigger]\nType = Package\nOperation = Upgrade\nTarget = *\n\n[Action]\nDescription = Mounting EFI\nWhen = PreTransaction\nExec = /usr/bin/mount -v %s /efi\n" "${EFI_DRIVE}${EFI_PARTITION}" > /mnt/etc/pacman.d/hooks/01-mount-efi.hook
+	fi
+
+	printf "[Trigger]\nType = Package\nOperation = Upgrade\nTarget = systemd\n\n[Action]\nDescription = Gracefully upgrading systemd-boot...\nWhen = PostTransaction\nExec = /usr/bin/systemctl restart systemd-boot-update.service\n" >/mnt/etc/pacman.d/hooks/100-systemd-boot.hook
 	
 	arch-chroot /mnt ln -sf /usr/share/zoneinfo/$TIMEZONE_REGION/$TIMEZONE_CITY /etc/localtime
 	arch-chroot /mnt hwclock --systohc
@@ -312,17 +337,18 @@ os_installation() {
 
 	install_addons
 
-	# TODO: Make sure this is correct
-	if [ "$GPU" = "nvidia" ]; then
-		sed -i "s/MODULES=()/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/" /mnt/etc/mkinitcpio.conf
-		KernelParameters[${#KernelParameters[@]}]="nvidia-drm.modeset=1"
-		printf "[Trigger]\nOperation=Install\nOperation=Upgrade\nOperation=Remove\nType=Package\nTarget=nvidia\nTarget=linux\n# Change the linux part above and in the Exec line if a different kernel is used\n\n[Action]\nDescription=Update Nvidia module in initcpio\nDepends=mkinitcpio\nWhen=PostTransaction\nNeedsTargets\nExec=/bin/sh -c 'while read -r trg; do case \$trg in linux) exit 0; esac; done; /usr/bin/mkinitcpio -P'\n" > /mnt/etc/pacman.d/hooks/nvidia.hook
+	if [ "$VM" = "y" ]; then
+		arch-chroot /mnt pacman -S --noconfirm --asexplicit virtualbox-guest-utils
+		arch-chroot /mnt systemctl enable vboxservice.service
 	fi
 
 	if [ "$ENCRYPT" = "y" ]; then
-		# Swap encryption
-		printf "swap\t%s\t/dev/urandom\tswap,cipher=aes-cbc-essiv:sha256,size=256\n" "$(find -L /dev/disk -samefile ${SWAP_DRIVE}${SWAP_PARTITION} | head -n1)" | tee -a /mnt/etc/crypttab
-		sed -i "s%UUID=$(lsblk -dno UUID ${SWAP_DRIVE}${SWAP_PARTITION})%/dev/mapper/swap%" /mnt/etc/fstab
+		if [ "$SWAP_TYPE" = "drive" ]; then
+			# Swap encryption
+			printf "swap\t%s\t/dev/urandom\tswap,cipher=aes-cbc-essiv:sha256,size=256\n" "$(find -L /dev/disk -samefile ${SWAP_DRIVE}${SWAP_PARTITION} | head -n1)" | tee -a /mnt/etc/crypttab
+			#sed -i "s%UUID=$(lsblk -dno UUID ${SWAP_DRIVE}${SWAP_PARTITION})%/dev/mapper/swap%" /mnt/etc/fstab
+			printf "/dev/mapper/swap\tnone\tswap\tdefaults\t0 0\n" >> /mnt/etc/fstab
+		fi
 
 		# Additional Drive encryption
 		for (( i=0; i<${#ADDITIONAL_DRIVES[@]}; i++ )); 
@@ -331,7 +357,7 @@ os_installation() {
 			printf "%s\tUUID=$(lsblk -dno UUID "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}")\t%s\n" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" "/root/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}.key" | tee -a /mnt/etc/crypttab
 		done
 
-		sed -i "s/HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)/HOOKS=(base udev autodetect keyboard modconf block encrypt filesystems keyboard fsck)/" /mnt/etc/mkinitcpio.conf	
+		sed -i "s/HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)/HOOKS=(base udev autodetect keyboard modconf block encrypt filesystems fsck)/" /mnt/etc/mkinitcpio.conf	
 
 		KernelParameters[${#KernelParameters[@]}]="cryptdevice=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}${ROOT_PARTITION}):root"
 		KernelParameters[${#KernelParameters[@]}]="root=/dev/mapper/root"
@@ -342,7 +368,24 @@ os_installation() {
 	arch-chroot /mnt passwd
 
 	if [ "$IS_UEFI" = "true" ]; then
-		arch-chroot /mnt grub-install --target=x86_64-efi --efi-directory=/efi --bootloader-id=GRUB
+		arch-chroot /mnt bootctl --esp-path=/efi --boot-path=/boot install
+
+		local ucode
+		if [ "$CPU_TYPE" = "amd" ]; then
+			ucode="amd-ucode.img"
+		elif [ "$CPU_TYPE" = "intel" ]; then
+			ucode="intel-ucode.img"
+		fi
+
+		if [ "$ENCRYPT" = "n" ]; then
+			KernelParameters[${#KernelParameters[@]}]="root=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}${ROOT_PARTITION})"
+		fi
+		KernelParameters[${#KernelParameters[@]}]="rw"
+
+		# TODO: Possible issue, if a BOOT partition isn't specified, change /mnt/boot to /mnt/efi
+		printf "title Arch Linux\nlinux /vmlinuz-linux\ninitrd /%s\ninitrd /initramfs-linux.img\noptions %s %s\n" "$ucode" "${KernelParameters[*]}" "${NonFallbackParameters[*]}" > /mnt/boot/loader/entries/arch.conf
+		printf "title Arch Linux (Fallback Initramfs)\nlinux /vmlinuz-linux\ninitrd /%s\ninitrd /initramfs-linux-fallback.img\noptions %s\n" "$ucode" "${KernelParameters[*]}" > /mnt/boot/loader/entries/arch-fallback.conf
+		printf "default arch.conf\ntimeout 4\nconsole-mode max\n" > /mnt/efi/loader/loader.conf
 	else
 		if [ "$BOOT_DRIVE" = "root" ]; then
 			arch-chroot /mnt grub-install --target=i386-pc "$ROOT_DRIVE"
@@ -350,7 +393,8 @@ os_installation() {
 			arch-chroot /mnt grub-install --target=i386-pc "$BOOT_DRIVE"
 		fi
 
-		sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 quiet\"%GRUB_CMDLINE_LINUX_DEFAULT=\"${KernelParameters[*]}\"%" /mnt/etc/default/grub
+		sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 quiet\"%GRUB_CMDLINE_LINUX_DEFAULT=\"${NonFallbackParameters[*]}\"%" /mnt/etc/default/grub
+		sed -i "s%GRUB_CMDLINE_LINUX=\"\"%GRUB_CMDLINE_LINUX=\"${KernelParameters[*]}\"%" /mnt/etc/default/grub
 		arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 	fi
 }

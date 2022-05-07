@@ -7,9 +7,7 @@ killall -q polybar
 
 # Launch all bars
 echo "---" | tee -a /tmp/mon-one-bar.log /tmp/mon-two-bar.log 
-polybar mon-one 2>&1 | tee -a /tmp/mon-one-bar.log & disown 
-polybar mon-two  2>&1 | tee -a /tmp/mon-two-bar.log & disown
+# polybar mon-one 2>&1 | tee -a /tmp/mon-one-bar.log & disown 
+# polybar mon-two  2>&1 | tee -a /tmp/mon-two-bar.log & disown
 
 echo "Bars launched..."
-
-nm-applet

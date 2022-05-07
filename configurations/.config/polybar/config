@@ -21,7 +21,7 @@ background = ${xrdb:color0:#222}
 background-alt = ${xrdb:color7:#222}
 foreground = ${xrdb:color6:#222}
 foreground-alt = ${xrdb:color1:#222}
-primary = #ffb52a
+primary = #aec5dd
 secondary = #e60053
 alert = #bd2c40
 last-color = ${xrdb:color3:#222}
@@ -333,7 +333,7 @@ format-volume = <label-volume> <bar-volume>
 label-volume = VOL
 label-volume-foreground = ${root.foreground}
 
-format-muted-prefix = " "
+format-muted-prefix = ""
 format-muted-foreground = ${colors.foreground-alt}
 label-muted = sound muted
 

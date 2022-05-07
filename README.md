@@ -1,6 +1,9 @@
 # dotfiles
 Just my attempt at a dotfiles. This repository contains two scripts that will fully install Arch Linux on your system. 'archlinux-install.sh' is meant to be run inside the Arch ISO and 'archlinux-post_install.sh' is meant to be run as root in the system after boot.
 
+## Pre-Install
+* For encryption, be sure to fully [wipe](https://wiki.archlinux.org/title/Dm-crypt/Drive_preparation#Generic_methods) your drives
+
 ## Installation
 1. Boot up in the arch ISO
 2. Clone or use a USB to copy this repository into the root folder

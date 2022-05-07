@@ -5,9 +5,7 @@
 
 # TODO:
 #	Secure Boot
-#	Early KMS setup
 
-#	Support Wi-Fi
 #	Make sure BIOS works with extended partitions - Not urgent
 #	Validation: Fat32 only has capital labels, etc - Not urgent
 
@@ -20,6 +18,7 @@ readonly TIMEZONE_REGION="America"
 readonly TIMEZONE_CITY="New_York"
 readonly CPU_TYPE="amd"
 readonly ENCRYPT="y"
+readonly NVIDIA="n"
 readonly VM="y"
 readonly DEBUG="y"
 
@@ -308,7 +307,7 @@ install_addons() {
 			arch-chroot /mnt pacman -S --noconfirm --asexplicit networkmanager
 			arch-chroot /mnt systemctl enable NetworkManager.service
 			arch-chroot /mnt systemctl enable systemd-resolved.service
-			ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+			arch-chroot /mnt ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf # TODO: Fix this
 		fi
 	done
 }
@@ -352,6 +351,10 @@ os_installation() {
 	if [ "$VM" = "y" ]; then
 		arch-chroot /mnt pacman -S --noconfirm --asexplicit virtualbox-guest-utils
 		arch-chroot /mnt systemctl enable vboxservice.service
+	fi
+
+	if [ "$NVIDIA" = "y" ]; then
+		KernelParameters[${#KernelParameters[@]}]="nvidia-drm.modeset=1"
 	fi
 
 	if [ "$ENCRYPT" = "y" ]; then

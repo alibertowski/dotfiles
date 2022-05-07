@@ -18,6 +18,9 @@ Just my attempt at a dotfiles. This repository contains two scripts that will fu
 * Nvidia drivers will always use xorg with the BSPWM setup included
 * AMD drivers will always use Wayland with the Swap setup included
 
+## Limitations
+* Dual-booting with Windows only works on UEFI/GPT
+
 ## TODO
 * Finish up the wayland setup
 * Finish extended partitions for BIOS

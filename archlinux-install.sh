@@ -62,8 +62,8 @@ readonly ADDITIONAL_NAME=("Test" "Other")
 readonly ADDITIONAL_MOUNTPOINT=("/mnt/root/test" "/mnt/home/alex")
 readonly ADDITIONAL_ENCRYPTION_MAPPING=("test" "other")
 
-readonly Addons=("DisableWatchdog")
-PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw python python2 man-db man-pages texinfo git polkit dhcpcd htop base-devel)
+readonly Addons=("DisableWatchdog" "Ethernet")
+PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw python python2 man-db man-pages texinfo git polkit htop base-devel)
 KernelParameters=()
 NonFallbackParameters=("loglevel=3" "quiet")
 
@@ -298,6 +298,18 @@ install_addons() {
 			KernelParameters[${#KernelParameters[@]}]="nowatchdog"
 			printf "blacklist iTCO_wdt\n" > /mnt/etc/modprobe.d/nowatchdog.conf
 		fi
+
+		if [ "$addon" = "Ethernet" ]; then
+			arch-chroot /mnt pacman -S --noconfirm --asexplicit dhcpcd
+			printf "noarp\n" >> /mnt/etc/dhcpcd.conf
+		fi
+
+		if [ "$addon" = "Wi-Fi" ]; then
+			arch-chroot /mnt pacman -S --noconfirm --asexplicit networkmanager
+			arch-chroot /mnt systemctl enable NetworkManager.service
+			arch-chroot /mnt systemctl enable systemd-resolved.service
+			ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+		fi
 	done
 }
 
@@ -346,7 +358,6 @@ os_installation() {
 		if [ "$SWAP_TYPE" = "drive" ]; then
 			# Swap encryption
 			printf "swap\t%s\t/dev/urandom\tswap,cipher=aes-cbc-essiv:sha256,size=256\n" "$(find -L /dev/disk -samefile ${SWAP_DRIVE}${SWAP_PARTITION} | head -n1)" | tee -a /mnt/etc/crypttab
-			#sed -i "s%UUID=$(lsblk -dno UUID ${SWAP_DRIVE}${SWAP_PARTITION})%/dev/mapper/swap%" /mnt/etc/fstab
 			printf "/dev/mapper/swap\tnone\tswap\tdefaults\t0 0\n" >> /mnt/etc/fstab
 		fi
 

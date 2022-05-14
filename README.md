@@ -3,6 +3,7 @@ Just my attempt at a dotfiles. This repository contains two scripts that will fu
 
 ## Pre-Install
 * For encryption, be sure to fully [wipe](https://wiki.archlinux.org/title/Dm-crypt/Drive_preparation#Generic_methods) your drives
+* If dual-booting Windows, make sure to disable fast boot, hibernation, and set the default hardware time to UTC
 
 ## Installation
 1. Boot up in the arch ISO

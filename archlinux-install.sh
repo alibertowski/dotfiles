@@ -61,7 +61,7 @@ readonly ADDITIONAL_NAME=("Test" "Other")
 readonly ADDITIONAL_MOUNTPOINT=("/mnt/root/test" "/mnt/home/alex")
 readonly ADDITIONAL_ENCRYPTION_MAPPING=("test" "other")
 
-readonly Addons=("DisableWatchdog" "Ethernet")
+readonly Addons=("DisableWatchdog" "Ethernet" "SecureBoot")
 PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw python python2 man-db man-pages texinfo git polkit htop base-devel)
 KernelParameters=()
 NonFallbackParameters=("loglevel=3" "quiet")
@@ -309,6 +309,54 @@ install_addons() {
 			arch-chroot /mnt systemctl enable systemd-resolved.service
 			arch-chroot /mnt ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf # TODO: Fix this
 		fi
+
+		if [ "$addon" = "SecureBoot" ]; then
+			efi-readvar -v PK -o old_PK.esl
+			efi-readvar -v KEK -o old_KEK.esl
+			efi-readvar -v db -o old_db.esl
+			efi-readvar -v dbx -o old_dbx.esl
+			uuidgen --random > GUID.txt
+
+			# Platform Key
+			openssl req -newkey rsa:4096 -nodes -keyout PK.key -new -x509 -sha256 -days 3650 -subj "/CN=my Platform Key/" -out PK.crt
+			openssl x509 -outform DER -in PK.crt -out PK.cer
+			cert-to-efi-sig-list -g "$(< GUID.txt)" PK.crt PK.esl
+			sign-efi-sig-list -g "$(< GUID.txt)" -k PK.key -c PK.crt PK PK.esl PK.auth
+
+			# KEK
+			openssl req -newkey rsa:4096 -nodes -keyout KEK.key -new -x509 -sha256 -days 3650 -subj "/CN=my Key Exchange Key/" -out KEK.crt
+			openssl x509 -outform DER -in KEK.crt -out KEK.cer
+			cert-to-efi-sig-list -g "$(< GUID.txt)" KEK.crt KEK.esl
+			sign-efi-sig-list -g "$(< GUID.txt)" -k PK.key -c PK.crt KEK KEK.esl KEK.auth
+
+			# db
+			openssl req -newkey rsa:4096 -nodes -keyout db.key -new -x509 -sha256 -days 3650 -subj "/CN=my Signature Database key/" -out db.crt
+			openssl x509 -outform DER -in db.crt -out db.cer
+			cert-to-efi-sig-list -g "$(< GUID.txt)" db.crt db.esl
+			sign-efi-sig-list -g "$(< GUID.txt)" -k KEK.key -c KEK.crt db db.esl db.auth
+
+			# Windows signatures
+			curl -o win_boot.crt "https://www.microsoft.com/pkiops/certs/MicWinProPCA2011_2011-10-19.crt"
+			curl -o win_firmware.crt "https://www.microsoft.com/pkiops/certs/MicCorUEFCA2011_2011-06-27.crt"
+			curl -o win_dbx.bin "https://uefi.org/sites/default/files/resources/dbxupdate_x64.bin"
+
+			sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output MS_Win_db.esl win_boot.crt
+			sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output MS_UEFI_db.esl win_firmware.crt
+			cat MS_Win_db.esl MS_UEFI_db.esl > MS_db.esl
+
+			sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k KEK.key -c KEK.crt db MS_db.esl add_MS_db.auth
+
+			# Enrolling Keys
+			mkdir -p /mnt/etc/secureboot/keys/{db,dbx,KEK,PK}
+			cp PK.auth /mnt/etc/secureboot/keys/PK/PK.auth
+			cp KEK.auth /mnt/etc/secureboot/keys/KEK/KEK.auth
+			cp db.auth /mnt/etc/secureboot/keys/db/db.auth
+			cp add_MS_db.auth /mnt/etc/secureboot/keys/db/add_MS_db.auth
+			cp win_dbx.bin /mnt/etc/secureboot/keys/dbx/win_dbx.bin
+
+			sbkeysync --verbose
+			sbkeysync --verbose --pk
+		fi
 	done
 }
 
@@ -375,14 +423,13 @@ os_installation() {
 
 		KernelParameters[${#KernelParameters[@]}]="cryptdevice=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}${ROOT_PARTITION}):root"
 		KernelParameters[${#KernelParameters[@]}]="root=/dev/mapper/root"
-		arch-chroot /mnt mkinitcpio -P
 	fi
 
 	echo "Enter the root password"
 	arch-chroot /mnt passwd
 
 	if [ "$IS_UEFI" = "true" ]; then
-		arch-chroot /mnt bootctl --esp-path=/efi --boot-path=/boot install
+		# arch-chroot /mnt bootctl --esp-path=/efi --boot-path=/boot install
 
 		local ucode
 		if [ "$CPU_TYPE" = "amd" ]; then
@@ -397,9 +444,17 @@ os_installation() {
 		KernelParameters[${#KernelParameters[@]}]="rw"
 
 		# TODO: Possible issue, if a BOOT partition isn't specified, change /mnt/boot to /mnt/efi
-		printf "title Arch Linux\nlinux /vmlinuz-linux\ninitrd /%s\ninitrd /initramfs-linux.img\noptions %s %s\n" "$ucode" "${KernelParameters[*]}" "${NonFallbackParameters[*]}" > /mnt/boot/loader/entries/arch.conf
-		printf "title Arch Linux (Fallback Initramfs)\nlinux /vmlinuz-linux\ninitrd /%s\ninitrd /initramfs-linux-fallback.img\noptions %s\n" "$ucode" "${KernelParameters[*]}" > /mnt/boot/loader/entries/arch-fallback.conf
-		printf "default arch.conf\ntimeout 4\nconsole-mode max\n" > /mnt/efi/loader/loader.conf
+		# printf "title Arch Linux\nlinux /vmlinuz-linux\ninitrd /%s\ninitrd /initramfs-linux.img\noptions %s %s\n" "$ucode" "${KernelParameters[*]}" "${NonFallbackParameters[*]}" > /mnt/boot/loader/entries/arch.conf
+		# printf "title Arch Linux (Fallback Initramfs)\nlinux /vmlinuz-linux\ninitrd /%s\ninitrd /initramfs-linux-fallback.img\noptions %s\n" "$ucode" "${KernelParameters[*]}" > /mnt/boot/loader/entries/arch-fallback.conf
+		# printf "default arch.conf\ntimeout 4\nconsole-mode max\n" > /mnt/efi/loader/loader.conf
+
+		printf "# mkinitcpio preset file for the 'linux' package\n\nALL_config=\"/etc/mkinitcpio.conf\"\nALL_kver=\"/boot/vmlinuz-linux\"\nALL_microcode=(/boot/%s)\n\nPRESETS=('default')\n\ndefault_image=\"/boot/initramfs-linux.img\"\ndefault_efi_image=\"/boot/EFI/Linux/archlinux-linux.efi\"\ndefault_options=\"--splash /usr/share/systemd/bootctl/splash-arch.bmp\"\n" "$ucode" > /mnt/etc/mkinitcpio.d/linux.preset
+		printf "%s %s\n" "${KernelParameters[*]}" "${NonFallbackParameters[*]}" > /mnt/etc/kernel/cmdline
+		arch-chroot /mnt mkinitcpio -p linux -U /boot/EFI/Linux/archlinux-linux.efi
+
+		if [[ "${Addons[*]}" =~ "SecureBoot" ]]; then
+			sbsign --key db.key --cert db.crt --output /boot/EFI/Linux/archlinux-linux.efi /boot/EFI/Linux/archlinux-linux.efi
+		fi
 	else
 		if [ "$BOOT_DRIVE" = "root" ]; then
 			arch-chroot /mnt grub-install --target=i386-pc "$ROOT_DRIVE"
@@ -407,6 +462,7 @@ os_installation() {
 			arch-chroot /mnt grub-install --target=i386-pc "$BOOT_DRIVE"
 		fi
 
+		arch-chroot /mnt mkinitcpio -P
 		sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 quiet\"%GRUB_CMDLINE_LINUX_DEFAULT=\"${NonFallbackParameters[*]}\"%" /mnt/etc/default/grub
 		sed -i "s%GRUB_CMDLINE_LINUX=\"\"%GRUB_CMDLINE_LINUX=\"${KernelParameters[*]}\"%" /mnt/etc/default/grub
 		arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg

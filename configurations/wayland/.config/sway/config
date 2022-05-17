@@ -24,7 +24,7 @@ set $menu exec $term --class=launcher -e /usr/bin/sway-launcher-desktop
 ### Output configuration
 #
 # Default wallpaper (more resolutions are available in /usr/share/backgrounds/sway/)
-output * bg $HOME/pictures/asia.png fill
+output * bg $HOME/pictures/space.jpg fill
 #
 # Example configuration:
 #

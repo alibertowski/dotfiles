@@ -69,16 +69,15 @@ cursor-scroll = ns-resize
 
 [bar/mon-one]
 inherit = bar/base
-monitor = ${env:MONITOR:DP-4}
-
-[bar/mon-two]
-inherit = bar/base
-monitor = ${env:MONITOR:HDMI-0}
-
+monitor =
 tray-position = right
 tray-detached = false
 tray-maxsize = 18
 tray-padding = 1
+
+; [bar/mon-two]
+; inherit = bar/base
+; monitor = ${env:MONITOR:HDMI-0}
 
 [module/xwindow]
 type = internal/xwindow

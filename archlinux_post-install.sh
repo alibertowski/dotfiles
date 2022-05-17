@@ -2,7 +2,6 @@
 # Run this script as root after the installation outside the boot medium
 
 # TODO:
-#   Setup wayland
 #   Add guide for multiple monitors
 
 readonly VM="y"
@@ -79,12 +78,13 @@ wayland_install() {
     cp -r ./configurations/wayland/. "/home/$USER_NAME"
     chown -R "$USER_NAME:$USER_NAME" "/home/$USER_NAME"
 
-    pacman -S --noconfirm --asexplicit sway
+    pacman -S --noconfirm --asexplicit sway glfw-wayland xorg-xwayland waybar
+    sudo -u "$USER_NAME" yay -S sway-launcher-desktop
 }
 
 if [ "$GPU" = "vbox" ]; then
     sed -i "s/MODULES=\(\)/MODULES=(vmwgfx)/" /etc/mkinitcpio.conf
-    xorg_install
+    wayland_install
 elif [ "$GPU" = "nvidia" ]; then
     pacman -S --noconfirm --asexplicit nvidia nvidia-utils lib32-nvidia-utils
     sed -i "s/MODULES=\(\)/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/" /etc/mkinitcpio.conf

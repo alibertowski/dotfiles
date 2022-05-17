@@ -4,13 +4,9 @@
 # Run the 'archlinux-post_install.sh' script once this is done in the freshly installed system
 
 # TODO:
+#	Test Secure Boot, Sign the EFI binary whenver a new one is built
 #	Make sure BIOS works with extended partitions - Not urgent
 #	Validation: Fat32 only has capital labels, etc - Not urgent
-
-# Testing Notes:
-#	Log installation and check any errors
-#	Make sure each line does what it's supposed to do
-#	Note on what's been fully tested
 
 readonly HOSTNAME="retro"
 readonly UEFI_LABEL="Arch Linux T"

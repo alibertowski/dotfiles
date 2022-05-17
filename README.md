@@ -25,6 +25,12 @@ Just my attempt at a dotfiles. This repository contains two scripts that will fu
 
 ## Limitations
 * Dual-booting with Windows only works on UEFI/GPT
+* When setting up your partitions, you must know if your partitions are correct because they won't be validated
+
+# Tested Setups
+* UEFI/GPT, No Encryption, No Secure Boot (TODO)
+* UEFI/GPT, Encryption, No Secure Boot (TODO)
+* UEFI/GPT, Encryption, Secure Boot (TODO - Needs a real system)
 
 ## TODO
 * Finish up the wayland setup

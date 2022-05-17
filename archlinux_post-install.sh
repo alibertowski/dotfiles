@@ -5,7 +5,6 @@
 #   Add guide for multiple monitors
 
 readonly VM="y"
-readonly GPU="vbox"
 readonly USER_NAME="alex"
 readonly ETHERNET="y"
 INTERFACE=$(ls /sys/class/net/ | grep en)
@@ -35,8 +34,7 @@ pre-install_setup() {
     # Pacman configurations
     sed -i "s/#Color/Color/" /etc/pacman.conf
     sed -i "s/#ParallelDownloads/ParallelDownloads/" /etc/pacman.conf
-    sed -i "s/#\[multilib\]/[multilib]/" /etc/pacman.conf
-    sed -i "s%#Include = /etc/pacman.d/mirrorlist%Include = /etc/pacman.d/mirrorlist%" /etc/pacman.conf
+    sed -i "s%#\[multilib\]%[multilib]\nInclude = /etc/pacman.d/mirrorlist%" /etc/pacman.conf
     pacman -Syu --noconfirm
     pacman -S --noconfirm --asexplicit pipewire lib32-pipewire wireplumber pipewire-alsa pipewire-pulse galculator kitty neofetch flameshot ttc-iosevka dunst vulkan-icd-loader lib32-vulkan-icd-loader
 
@@ -44,17 +42,18 @@ pre-install_setup() {
     passwd $USER_NAME
 
     echo "Installing yay"
-    cd "/home/$USER_NAME"
-    git clone https://aur.archlinux.org/yay.git
-    chown -R "$USER_NAME:$USER_NAME" "/home/$USER_NAME"
     (
+        cd "/home/$USER_NAME" || exit
+        git clone https://aur.archlinux.org/yay.git
+        chown -R "$USER_NAME:$USER_NAME" "/home/$USER_NAME"
+
         cd yay || exit
         sudo -u "$USER_NAME" makepkg -sic --noconfirm
     )
-    rm -rf yay
+    rm -rf /home/"$USER_NAME"/yay
 
     echo "Insalling AUR packages"
-    sudo -u "$USER_NAME" yay -S polkit-dumb-agent-git
+    sudo -u "$USER_NAME" yay -S polkit-dumb-agent-git all-repository-fonts
 }
 
 install_dotfiles() {
@@ -82,21 +81,24 @@ wayland_install() {
     sudo -u "$USER_NAME" yay -S sway-launcher-desktop
 }
 
-if [ "$GPU" = "vbox" ]; then
-    sed -i "s/MODULES=\(\)/MODULES=(vmwgfx)/" /etc/mkinitcpio.conf
+pre-install_setup
+
+if [ "$VM" = "y" ]; then
+    sed -i "s/MODULES=()/MODULES=(vmwgfx)/" /etc/mkinitcpio.conf
     wayland_install
 elif [ "$GPU" = "nvidia" ]; then
     pacman -S --noconfirm --asexplicit nvidia nvidia-utils lib32-nvidia-utils
-    sed -i "s/MODULES=\(\)/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/" /etc/mkinitcpio.conf
+    sed -i "s/MODULES=()/MODULES=(nvidia nvidia_modeset nvidia_uvm nvidia_drm)/" /etc/mkinitcpio.conf
     printf "[Trigger]\nOperation=Install\nOperation=Upgrade\nOperation=Remove\nType=Package\nTarget=nvidia\nTarget=linux\n# Change the linux part above and in the Exec line if a different kernel is used\n\n[Action]\nDescription=Update Nvidia module in initcpio\nDepends=mkinitcpio\nWhen=PostTransaction\nNeedsTargets\nExec=/bin/sh -c 'while read -r trg; do case \$trg in linux) exit 0; esac; done; /usr/bin/mkinitcpio -P'\n" > /etc/pacman.d/hooks/nvidia.hook
 
     xorg_install
 elif [ "$GPU" = "amd" ]; then
     pacman -S --noconfirm --asexplicit mesa lib32-mesa vulkan-radeon lib32-vulkan-radeon libva-mesa-driver lib32-libva-mesa-driver mesa-vdpau lib32-mesa-vdpau
-    sed -i "s/MODULES=\(\)/MODULES=(amdgpu)/" /etc/mkinitcpio.conf
+    sed -i "s/MODULES=()/MODULES=(amdgpu)/" /etc/mkinitcpio.conf
     wayland_install
 fi
 
-mkinitcpio -P
+chown -R "$USER_NAME:$USER_NAME" "/home/$USER_NAME"
+pacman -S --noconfirm linux
 
 echo "Post-installation complete. Reboot to finalize any changes and log into your new user."

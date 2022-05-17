@@ -17,7 +17,7 @@ readonly ENCRYPT="n"
 readonly NVIDIA="n"
 readonly VM="y"
 readonly DEBUG="y"
-readonly Addons=("DisableWatchdog" "Wi-Fi")
+readonly Addons=("DisableWatchdog" "Ethernet" "SecureBoot")
 
 # Boot, Root, Swap, EFI, Additonal Drives
 readonly SWAP_DRIVE="/dev/sdb"
@@ -320,53 +320,53 @@ install_addons() {
 		if [ "$addon" = "SecureBoot" ]; then
 			arch-chroot /mnt pacman -S --noconfirm --asexplicit sbsigntools efitools
 
-			local secureBootDir="/mnt/root/secure-boot"
-			mkdir -p "$secureBootDir"/{db,dbx,KEK,PK,windows,backups}
-			efi-readvar -v PK -o "$secureBootDir"/backups/old_PK.esl
-			efi-readvar -v KEK -o "$secureBootDir"/backups/old_KEK.esl
-			efi-readvar -v db -o "$secureBootDir"/backups/old_db.esl
-			efi-readvar -v dbx -o "$secureBootDir"/backups/old_dbx.esl
-			uuidgen --random > "$secureBootDir"/GUID.txt
+			local secureBootDir="/root/secure-boot"
+			mkdir -p /mnt"$secureBootDir"/{db,dbx,KEK,PK,windows,backups}
+			arch-chroot /mnt efi-readvar -v PK -o "$secureBootDir"/backups/old_PK.esl
+			arch-chroot /mnt efi-readvar -v KEK -o "$secureBootDir"/backups/old_KEK.esl
+			arch-chroot /mnt efi-readvar -v db -o "$secureBootDir"/backups/old_db.esl
+			arch-chroot /mnt efi-readvar -v dbx -o "$secureBootDir"/backups/old_dbx.esl
+			arch-chroot /mnt uuidgen --random > /mnt"$secureBootDir"/GUID.txt
 
 			# Platform Key
-			openssl req -newkey rsa:4096 -nodes -keyout "$secureBootDir"/PK/PK.key -new -x509 -sha256 -days 3650 -subj "/CN=my Platform Key/" -out "$secureBootDir"/PK/PK.crt
-			openssl x509 -outform DER -in "$secureBootDir"/PK/PK.crt -out "$secureBootDir"/PK/PK.cer
-			cert-to-efi-sig-list -g "$(< GUID.txt)" "$secureBootDir"/PK/PK.crt "$secureBootDir"/PK/PK.esl
-			sign-efi-sig-list -g "$(< GUID.txt)" -k "$secureBootDir"/PK/PK.key -c "$secureBootDir"/PK/PK.crt PK "$secureBootDir"/PK/PK.esl "$secureBootDir"/PK/PK.auth
+			arch-chroot /mnt openssl req -newkey rsa:4096 -nodes -keyout "$secureBootDir"/PK/PK.key -new -x509 -sha256 -days 3650 -subj "/CN=my Platform Key/" -out "$secureBootDir"/PK/PK.crt
+			arch-chroot /mnt openssl x509 -outform DER -in "$secureBootDir"/PK/PK.crt -out "$secureBootDir"/PK/PK.cer
+			arch-chroot /mnt cert-to-efi-sig-list -g "$(< /mnt"$secureBootDir"/GUID.txt)" "$secureBootDir"/PK/PK.crt "$secureBootDir"/PK/PK.esl
+			arch-chroot /mnt sign-efi-sig-list -g "$(< /mnt"$secureBootDir"/GUID.txt)" -k "$secureBootDir"/PK/PK.key -c "$secureBootDir"/PK/PK.crt PK "$secureBootDir"/PK/PK.esl "$secureBootDir"/PK/PK.auth
 
 			# KEK
-			openssl req -newkey rsa:4096 -nodes -keyout "$secureBootDir"/KEK/KEK.key -new -x509 -sha256 -days 3650 -subj "/CN=my Key Exchange Key/" -out "$secureBootDir"/KEK/KEK.crt
-			openssl x509 -outform DER -in "$secureBootDir"/KEK/KEK.crt -out "$secureBootDir"/KEK/KEK.cer
-			cert-to-efi-sig-list -g "$(< GUID.txt)" "$secureBootDir"/KEK/KEK.crt "$secureBootDir"/KEK/KEK.esl
-			sign-efi-sig-list -g "$(< GUID.txt)" -k "$secureBootDir"/PK/PK.key -c "$secureBootDir"/PK/PK.crt KEK "$secureBootDir"/KEK/KEK.esl "$secureBootDir"/KEK/KEK.auth
+			arch-chroot /mnt openssl req -newkey rsa:4096 -nodes -keyout "$secureBootDir"/KEK/KEK.key -new -x509 -sha256 -days 3650 -subj "/CN=my Key Exchange Key/" -out "$secureBootDir"/KEK/KEK.crt
+			arch-chroot /mnt openssl x509 -outform DER -in "$secureBootDir"/KEK/KEK.crt -out "$secureBootDir"/KEK/KEK.cer
+			arch-chroot /mnt cert-to-efi-sig-list -g "$(< /mnt"$secureBootDir"/GUID.txt)" "$secureBootDir"/KEK/KEK.crt "$secureBootDir"/KEK/KEK.esl
+			arch-chroot /mnt sign-efi-sig-list -g "$(< /mnt"$secureBootDir"/GUID.txt)" -k "$secureBootDir"/PK/PK.key -c "$secureBootDir"/PK/PK.crt KEK "$secureBootDir"/KEK/KEK.esl "$secureBootDir"/KEK/KEK.auth
 
 			# db
-			openssl req -newkey rsa:4096 -nodes -keyout "$secureBootDir"/db/db.key -new -x509 -sha256 -days 3650 -subj "/CN=my Signature Database key/" -out "$secureBootDir"/db/db.crt
-			openssl x509 -outform DER -in "$secureBootDir"/db/db.crt -out "$secureBootDir"/db/db.cer
-			cert-to-efi-sig-list -g "$(< GUID.txt)" "$secureBootDir"/db/db.crt "$secureBootDir"/db/db.esl
-			sign-efi-sig-list -g "$(< GUID.txt)" -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/db/db.esl "$secureBootDir"/db/db.auth
+			arch-chroot /mnt openssl req -newkey rsa:4096 -nodes -keyout "$secureBootDir"/db/db.key -new -x509 -sha256 -days 3650 -subj "/CN=my Signature Database key/" -out "$secureBootDir"/db/db.crt
+			arch-chroot /mnt openssl x509 -outform DER -in "$secureBootDir"/db/db.crt -out "$secureBootDir"/db/db.cer
+			arch-chroot /mnt cert-to-efi-sig-list -g "$(< /mnt"$secureBootDir"/GUID.txt)" "$secureBootDir"/db/db.crt "$secureBootDir"/db/db.esl
+			arch-chroot /mnt sign-efi-sig-list -g "$(< /mnt"$secureBootDir"/GUID.txt)" -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/db/db.esl "$secureBootDir"/db/db.auth
 
 			# Windows signatures
-			curl -o "$secureBootDir"/windows/win_boot.crt "https://www.microsoft.com/pkiops/certs/MicWinProPCA2011_2011-10-19.crt"
-			curl -o "$secureBootDir"/windows/win_firmware.crt "https://www.microsoft.com/pkiops/certs/MicCorUEFCA2011_2011-06-27.crt"
-			curl -o "$secureBootDir"/windows/win_dbx.bin "https://uefi.org/sites/default/files/resources/dbxupdate_x64.bin"
+			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_boot.crt "https://www.microsoft.com/pkiops/certs/MicWinProPCA2011_2011-10-19.crt"
+			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_firmware.crt "https://www.microsoft.com/pkiops/certs/MicCorUEFCA2011_2011-06-27.crt"
+			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_dbx.bin "https://uefi.org/sites/default/files/resources/dbxupdate_x64.bin"
 
-			sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/win_boot.crt
-			sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_UEFI_db.esl "$secureBootDir"/windows/win_firmware.crt
-			cat "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/MS_UEFI_db.esl > "$secureBootDir"/windows/MS_db.esl
+			arch-chroot /mnt sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/win_boot.crt
+			arch-chroot /mnt sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_UEFI_db.esl "$secureBootDir"/windows/win_firmware.crt
+			arch-chroot /mnt cat "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/MS_UEFI_db.esl > /mnt"$secureBootDir"/windows/MS_db.esl
 
-			sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_db.esl "$secureBootDir"/windows/add_MS_db.auth
+			arch-chroot /mnt sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_db.esl "$secureBootDir"/windows/add_MS_db.auth
 
 			# Enrolling Keys
 			mkdir -p /mnt/etc/secureboot/keys/{db,dbx,KEK,PK}
-			cp "$secureBootDir"/PK/PK.auth /mnt/etc/secureboot/keys/PK/PK.auth
-			cp "$secureBootDir"/KEK/KEK.auth /mnt/etc/secureboot/keys/KEK/KEK.auth
-			cp "$secureBootDir"/db/db.auth /mnt/etc/secureboot/keys/db/db.auth
-			cp "$secureBootDir"/windows/add_MS_db.auth /mnt/etc/secureboot/keys/db/add_MS_db.auth
-			cp "$secureBootDir"/windows/win_dbx.bin /mnt/etc/secureboot/keys/dbx/win_dbx.bin
+			cp /mnt"$secureBootDir"/PK/PK.auth /mnt/etc/secureboot/keys/PK/PK.auth
+			cp /mnt"$secureBootDir"/KEK/KEK.auth /mnt/etc/secureboot/keys/KEK/KEK.auth
+			cp /mnt"$secureBootDir"/db/db.auth /mnt/etc/secureboot/keys/db/db.auth
+			cp /mnt"$secureBootDir"/windows/add_MS_db.auth /mnt/etc/secureboot/keys/db/add_MS_db.auth
+			cp /mnt"$secureBootDir"/windows/win_dbx.bin /mnt/etc/secureboot/keys/dbx/win_dbx.bin
 
-			sbkeysync --verbose
-			sbkeysync --verbose --pk
+			arch-chroot /mnt sbkeysync --verbose
+			arch-chroot /mnt sbkeysync --verbose --pk
 		fi
 	done
 }
@@ -393,7 +393,7 @@ os_installation() {
 	arch-chroot /mnt ln -sf /usr/share/zoneinfo/$TIMEZONE_REGION/$TIMEZONE_CITY /etc/localtime
 	arch-chroot /mnt hwclock --systohc
 
-	sed -i "s/#en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/" /mnt/etc/locale.gen
+	sed -i "s/#en_US\.UTF-8 UTF-8/en_US.UTF-8 UTF-8/" /mnt/etc/locale.gen
 	arch-chroot /mnt locale-gen
 	echo "LANG=en_US.UTF-8" > /mnt/etc/locale.conf
 
@@ -425,7 +425,7 @@ os_installation() {
 			printf "%s\tUUID=$(lsblk -dno UUID "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}")\t%s\n" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" "/root/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}.key" | tee -a /mnt/etc/crypttab
 		done
 
-		sed -i "s/HOOKS=\(base udev autodetect modconf block filesystems keyboard fsck\)/HOOKS=(base udev autodetect keyboard modconf block encrypt filesystems fsck)/" /mnt/etc/mkinitcpio.conf	
+		sed -i "s/HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)/HOOKS=(base udev autodetect keyboard modconf block encrypt filesystems fsck)/" /mnt/etc/mkinitcpio.conf	
 
 		KernelParameters[${#KernelParameters[@]}]="cryptdevice=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}${ROOT_PARTITION}):root"
 		KernelParameters[${#KernelParameters[@]}]="root=/dev/mapper/root"
@@ -436,6 +436,8 @@ os_installation() {
 
 	if [ "$IS_UEFI" = "true" ]; then
 		local ucode
+		local cmdlineDir="/root"
+
 		if [ "$CPU_TYPE" = "amd" ]; then
 			ucode="amd-ucode.img"
 		elif [ "$CPU_TYPE" = "intel" ]; then
@@ -449,26 +451,27 @@ os_installation() {
 
 		mkdir -p /mnt/etc/kernel
 		mkdir -p /mnt/boot/EFI/Linux
-		printf "# mkinitcpio preset file for the 'linux' package\n\nALL_config=\"/etc/mkinitcpio.conf\"\nALL_kver=\"/boot/vmlinuz-linux\"\nALL_microcode=(/boot/%s)\n\nPRESETS=('default' 'fallback')\n\ndefault_image=\"/boot/initramfs-linux.img\"\ndefault_efi_image=\"/boot/EFI/Linux/arch-linux.efi\"\ndefault_options=\"--splash /usr/share/systemd/bootctl/splash-arch.bmp --cmdline /etc/kernel/cmdline\"\n\nfallback_image=\"/boot/initramfs-linux-fallback.img\"\nfallback_efi_image=\"/boot/EFI/Linux/arch-linux-fallback.efi\"\nfallback_options=\"-S autodetect --splash /usr/share/systemd/bootctl/splash-arch.bmp --cmdline /etc/kernel/cmdline-fallback\"\n" "$ucode" > /mnt/etc/mkinitcpio.d/linux.preset
-		printf "%s %s\n" "${KernelParameters[*]}" "${NonFallbackParameters[*]}" > /mnt/etc/kernel/cmdline
-		printf "%s\n" "${KernelParameters[*]}" > /mnt/etc/kernel/cmdline-fallback
+		mkdir -p /mnt"$cmdlineDir"
+		printf "# mkinitcpio preset file for the 'linux' package\n\nALL_config=\"/etc/mkinitcpio.conf\"\nALL_kver=\"/boot/vmlinuz-linux\"\nALL_microcode=(/boot/%s)\n\nPRESETS=('default' 'fallback')\n\ndefault_image=\"/boot/initramfs-linux.img\"\ndefault_efi_image=\"/boot/EFI/Linux/arch-linux.efi\"\ndefault_options=\"--splash /usr/share/systemd/bootctl/splash-arch.bmp --cmdline %s/cmdline\"\n\nfallback_image=\"/boot/initramfs-linux-fallback.img\"\nfallback_efi_image=\"/boot/EFI/Linux/arch-linux-fallback.efi\"\nfallback_options=\"-S autodetect --splash /usr/share/systemd/bootctl/splash-arch.bmp --cmdline %s/cmdline-fallback\"\n" "$ucode" "$cmdlineDir" "$cmdlineDir" > /mnt/etc/mkinitcpio.d/linux.preset
+		printf "%s %s\n" "${KernelParameters[*]}" "${NonFallbackParameters[*]}" > /mnt/"$cmdlineDir"/cmdline
+		printf "%s\n" "${KernelParameters[*]}" > /mnt"$cmdlineDir"/cmdline-fallback
 		arch-chroot /mnt mkinitcpio -p linux
 
 		if [[ "${Addons[*]}" =~ "SecureBoot" ]]; then
-			arch-chroot /mnt sbsign --key db.key --cert db.crt --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
-			arch-chroot /mnt sbsign --key db.key --cert db.crt --output /boot/EFI/Linux/arch-linux-fallback.efi /boot/EFI/Linux/arch-linux-fallback.efi
+			arch-chroot /mnt sbsign --key /root/secure-boot/db/db.key --cert /root/secure-boot/db/db.crt --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi
+			arch-chroot /mnt sbsign --key /root/secure-boot/db/db.key --cert /root/secure-boot/db/db.crt --output /boot/EFI/Linux/arch-linux-fallback.efi /boot/EFI/Linux/arch-linux-fallback.efi
 		fi
 
 		arch-chroot /mnt efibootmgr --create --disk "$EFI_DRIVE" --part "$EFI_PARTITION" --label "$UEFI_LABEL" --loader "/EFI/Linux/arch-linux.efi" --verbose
 		arch-chroot /mnt efibootmgr --create --disk "$EFI_DRIVE" --part "$EFI_PARTITION" --label "$UEFI_LABEL-Fallback" --loader "/EFI/Linux/arch-linux-fallback.efi" --verbose
 	else
+		arch-chroot /mnt mkinitcpio -P
 		if [ "$BOOT_DRIVE" = "root" ]; then
 			arch-chroot /mnt grub-install --target=i386-pc "$ROOT_DRIVE"
 		else
 			arch-chroot /mnt grub-install --target=i386-pc "$BOOT_DRIVE"
 		fi
 
-		arch-chroot /mnt mkinitcpio -P
 		sed -i "s%GRUB_CMDLINE_LINUX_DEFAULT=\"loglevel=3 quiet\"%GRUB_CMDLINE_LINUX_DEFAULT=\"${NonFallbackParameters[*]}\"%" /mnt/etc/default/grub
 		sed -i "s%GRUB_CMDLINE_LINUX=\"\"%GRUB_CMDLINE_LINUX=\"${KernelParameters[*]}\"%" /mnt/etc/default/grub
 		arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
@@ -483,6 +486,9 @@ os_installation() {
 	if [ "$IS_UEFI" = "true" ]; then
 		printf "[Trigger]\nType = Package\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nTarget = *\n\n[Action]\nDescription = Mounting ESP\nWhen = PreTransaction\nExec = /usr/bin/mount -v %s %s\n" "${EFI_DRIVE}${EFI_PARTITION}" "${EFI_DIR}" > /mnt/etc/pacman.d/hooks/0-mount-esp.hook
 		printf "[Trigger]\nType = Package\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nTarget = *\n\n[Action]\nDescription = Un-Mounting ESP\nWhen = PostTransaction\nExec = /usr/bin/umount -v %s\n" "${EFI_DIR}" > /mnt/etc/pacman.d/hooks/99-unmount-esp.hook
+	fi
+	if [[ "${Addons[*]}" =~ "SecureBoot" ]]; then
+		printf "[Trigger]\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nType = Package\nTarget = *\n\n[Action]\nDescription = Signing the Unified Kernel Images\nWhen = PostTransaction\nExec = /bin/sh -c 'sbsign --key /root/secure-boot/db/db.key --cert /root/secure-boot/db/db.crt --output /boot/EFI/Linux/arch-linux.efi /boot/EFI/Linux/arch-linux.efi && sbsign --key /root/secure-boot/db/db.key --cert /root/secure-boot/db/db.crt --output /boot/EFI/Linux/arch-linux-fallback.efi /boot/EFI/Linux/arch-linux-fallback.efi'\nDepends = sbsigntools\n" > /mnt/etc/pacman.d/hooks/98-sign-kernel-images.hook
 	fi
 
 	if [ "$VM" = "y" ]; then

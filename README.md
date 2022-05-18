@@ -28,9 +28,11 @@ Just my attempt at a dotfiles. This repository contains two scripts that will fu
 * When setting up your partitions, you must know if your partitions are correct because they won't be validated
 
 # Tested Setups
-* UEFI/GPT, No Encryption, No Secure Boot (TODO)
-* UEFI/GPT, Encryption, No Secure Boot (TODO)
+* UEFI/GPT, No Encryption, No Secure Boot - Works
+* UEFI/GPT, Encryption, No Secure Boot - Works
 * UEFI/GPT, Encryption, Secure Boot (TODO - Needs a real system)
+* BIOS/MBR, No Encryption (TODO)
+* BIOS/MBR, Encryption (TODO)
 
 ## TODO
 * Finish up the wayland setup

@@ -17,11 +17,11 @@ readonly ENCRYPT="n"
 readonly NVIDIA="n"
 readonly VM="y"
 readonly DEBUG="y"
-readonly Addons=("DisableWatchdog" "Ethernet" "SecureBoot")
+readonly Addons=("DisableWatchdog" "Ethernet" "SecureBoot" "Bluetooth")
 
 # Boot, Root, Swap, EFI, Additonal Drives
 readonly SWAP_DRIVE="/dev/sdb"
-readonly SWAP_TYPE="drive" # Can be one of the following: (drive or none)
+readonly SWAP_TYPE="drive" # Can be one of the following: (drive, nvme, or none)
 readonly SWAP_SIZE=("1MiB" "1GiB")
 readonly SWAP_LABEL="Swap"
 readonly SWAP_NAME="LinuxSwap"
@@ -33,6 +33,7 @@ readonly ROOT_SIZE=("1GiB" "8GiB")
 readonly ROOT_LABEL="Root"
 readonly ROOT_NAME="LinuxRoot"
 readonly ROOT_PARTITION="2"
+readonly ROOT_TYPE="nvme"
 
 # Drive or root (Included in root), Size, Name
 readonly BOOT_DRIVE="root"
@@ -40,6 +41,7 @@ readonly BOOT_SIZE=("1MiB" "1GiB")
 readonly BOOT_LABEL="BOOT"
 readonly BOOT_NAME="LinuxBoot"
 readonly BOOT_PARTITION="1"
+readonly BOOT_TYPE="nvme"
 
 # Drive, Size, Name, Partition
 readonly EFI_DRIVE="/dev/sda"
@@ -48,6 +50,7 @@ readonly EFI_LABEL="EFI"
 readonly EFI_NAME="EFI"
 readonly EFI_PARTITION="1"
 readonly EFI_DIR="/boot"
+readonly EFI_TYPE="nvme"
 
 # Drive, Size, Name, Partition
 readonly ADDITIONAL_DRIVES=("/dev/sda" "/dev/sdb")
@@ -58,6 +61,7 @@ readonly ADDITIONAL_PARTITION=("3" "2")
 readonly ADDITIONAL_NAME=("Test" "Other")
 readonly ADDITIONAL_MOUNTPOINT=("/mnt/root/test" "/mnt/home/alex")
 readonly ADDITIONAL_ENCRYPTION_MAPPING=("test" "other")
+readonly ADDITIONAL_TYPE=("nvme" "nvme")
 
 PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw python python2 man-db man-pages texinfo git polkit htop base-devel)
 KernelParameters=()
@@ -94,19 +98,19 @@ validate_variables() {
 		exit 2
 	fi
 
-	for addon in "${Addons[@]}"; do
-		if [[ ! "${Addons[*]}" =~ $addon ]]; then
-			printf "Only the following addons exist:\n\tDisableWatchdog\n\tEthernet\n\tWi-Fi\n\tSecureBoot\n"
-			exit 2
-		fi
-	done
+	# for addon in "${Addons[@]}"; do
+	# 	if [[ ! "${Addons[*]}" =~ $addon ]]; then
+	# 		printf "Only the following addons exist:\n\tDisableWatchdog\n\tEthernet\n\tWi-Fi\n\tSecureBoot\n"
+	# 		exit 2
+	# 	fi
+	# done
 }
 
 partition_drives() {
 	# Check each drive type for their device
 	local drivesToPart=()
 
-	if [ "$SWAP_TYPE" = "drive" ]; then
+	if [[ "$SWAP_TYPE" = "drive" || "$SWAP_TYPE" = "nvme" ]]; then
 		drivesToPart[${#drivesToPart[@]}]=$SWAP_DRIVE
 	fi
 
@@ -170,8 +174,8 @@ partition_drives() {
 				fi
 
 				if [ "$ENCRYPT" = "n" ]; then
-					mkswap -L "$SWAP_LABEL" "${SWAP_DRIVE}${SWAP_PARTITION}"
-					swapon "${SWAP_DRIVE}${SWAP_PARTITION}"
+					mkswap -L "$SWAP_LABEL" "${SWAP_DRIVE}$(if [ "${SWAP_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${SWAP_PARTITION}"
+					swapon "${SWAP_DRIVE}$(if [ "${SWAP_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${SWAP_PARTITION}"
 				fi
 
 				currentPartition=$((currentPartition + 1))
@@ -185,13 +189,13 @@ partition_drives() {
 				fi
 
 				if [ "$ENCRYPT" = "y" ]; then
-					cryptsetup -y -v luksFormat "${ROOT_DRIVE}${ROOT_PARTITION}"
-					cryptsetup open "${ROOT_DRIVE}${ROOT_PARTITION}" root
+					cryptsetup -y -v luksFormat "${ROOT_DRIVE}$(if [ "${ROOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ROOT_PARTITION}"
+					cryptsetup open "${ROOT_DRIVE}$(if [ "${ROOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ROOT_PARTITION}" root
 					mkfs.ext4 -L "$ROOT_LABEL" /dev/mapper/root
 					mount -v /dev/mapper/root /mnt
 				else
-					mkfs.ext4 -L "$ROOT_LABEL" "${ROOT_DRIVE}${ROOT_PARTITION}"
-					mount -v "${ROOT_DRIVE}${ROOT_PARTITION}" /mnt
+					mkfs.ext4 -L "$ROOT_LABEL" "${ROOT_DRIVE}$(if [ "${ROOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ROOT_PARTITION}"
+					mount -v "${ROOT_DRIVE}$(if [ "${ROOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ROOT_PARTITION}" /mnt
 				fi
 
 				currentPartition=$((currentPartition + 1))
@@ -214,11 +218,11 @@ partition_drives() {
 						dd bs=512 count=4 if=/dev/random of=/root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" iflag=fullblock
 						chmod 600 /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
 						
-						cryptsetup -qv luksFormat "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
-						cryptsetup open "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" -d /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
+						cryptsetup -qv luksFormat "${ADDITIONAL_DRIVES[$i]}$(if [ "${ADDITIONAL_TYPE[$i]}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ADDITIONAL_PARTITION[$i]}" /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
+						cryptsetup open "${ADDITIONAL_DRIVES[$i]}$(if [ "${ADDITIONAL_TYPE[$i]}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ADDITIONAL_PARTITION[$i]}" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" -d /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
 						mkfs.ext4 -L "${ADDITIONAL_LABEL[$i]}" "/dev/mapper/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}"
 					else
-						mkfs.ext4 -L "${ADDITIONAL_LABEL[$i]}" "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}"
+						mkfs.ext4 -L "${ADDITIONAL_LABEL[$i]}" "${ADDITIONAL_DRIVES[$i]}$(if [ "${ADDITIONAL_TYPE[$i]}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ADDITIONAL_PARTITION[$i]}"
 					fi
 
 					currentPartition=$((currentPartition + 1))
@@ -229,7 +233,7 @@ partition_drives() {
 				parted -s "$drive" mkpart "$EFI_NAME" fat32 "${EFI_SIZE[0]}" "${EFI_SIZE[1]}"
 				parted -s "$drive" set "$EFI_PARTITION" esp on
 
-				mkfs.fat -F 32 -n "$EFI_LABEL" "${EFI_DRIVE}${EFI_PARTITION}"
+				mkfs.fat -F 32 -n "$EFI_LABEL" "${EFI_DRIVE}$(if [ "${EFI_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${EFI_PARTITION}"
 				currentPartition=$((currentPartition + 1))
 			fi
 
@@ -237,11 +241,11 @@ partition_drives() {
 				if [ "$IS_UEFI" = "true" ]; then
 					parted -s "$drive" mkpart "$BOOT_NAME" fat32 "${BOOT_SIZE[0]}" "${BOOT_SIZE[1]}"
 					parted -s "$drive" set "$BOOT_PARTITION" bls_boot on
-					mkfs.fat -F 32 -n "$BOOT_LABEL" "${BOOT_DRIVE}${BOOT_PARTITION}"
+					mkfs.fat -F 32 -n "$BOOT_LABEL" "${BOOT_DRIVE}$(if [ "${BOOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${BOOT_PARTITION}"
 				else
 					parted -s "$drive" mkpart primary ext4 "${BOOT_SIZE[0]}" "${BOOT_SIZE[1]}"
 					parted -s "$drive" set "$BOOT_PARTITION" boot on
-					mkfs.ext4 -L "$BOOT_LABEL" "${BOOT_DRIVE}${BOOT_PARTITION}"
+					mkfs.ext4 -L "$BOOT_LABEL" "${BOOT_DRIVE}$(if [ "${BOOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${BOOT_PARTITION}"
 				fi
 
 				currentPartition=$((currentPartition + 1))
@@ -251,12 +255,12 @@ partition_drives() {
 
 	if [ "$BOOT_DRIVE" != "root" ]; then
 		mkdir -p /mnt/boot
-		mount -v "${BOOT_DRIVE}${BOOT_PARTITION}" /mnt/boot
+		mount -v "${BOOT_DRIVE}$(if [ "${BOOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${BOOT_PARTITION}" /mnt/boot
 	fi
 
 	if [ "$IS_UEFI" = "true" ]; then
 		mkdir -p /mnt"${EFI_DIR}"
-		mount -v "${EFI_DRIVE}${EFI_PARTITION}" /mnt"${EFI_DIR}"
+		mount -v "${EFI_DRIVE}$(if [ "${EFI_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${EFI_PARTITION}" /mnt"${EFI_DIR}"
 	fi
 
 	for (( i=0; i<${#ADDITIONAL_DRIVES[@]}; i++ )); 
@@ -266,7 +270,7 @@ partition_drives() {
 			mount -v "/dev/mapper/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" "${ADDITIONAL_MOUNTPOINT[$i]}"
 		else
 			mkdir -p "${ADDITIONAL_MOUNTPOINT[$i]}"
-			mount -v "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}" "${ADDITIONAL_MOUNTPOINT[$i]}"
+			mount -v "${ADDITIONAL_DRIVES[$i]}$(if [ "${ADDITIONAL_TYPE[$i]}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ADDITIONAL_PARTITION[$i]}" "${ADDITIONAL_MOUNTPOINT[$i]}"
 		fi
 	done
 }
@@ -315,6 +319,12 @@ install_addons() {
 
 			rm -rf /mnt/etc/resolv.conf
 			arch-chroot /mnt ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+		fi
+
+		if [ "$addon" = "Bluetooth" ]; then
+			arch-chroot /mnt pacman -S --noconfirm --asexplicit bluez bluez-utils blueman
+			arch-chroot /mnt modprobe btusb
+			arch-chroot /mnt systemctl enable bluetooth.service
 		fi
 
 		if [ "$addon" = "SecureBoot" ]; then
@@ -384,10 +394,10 @@ os_installation() {
 	genfstab -U /mnt >> /mnt/etc/fstab
 
 	if [ "$BOOT_DRIVE" != "root" ]; then
-		mount -v "${BOOT_DRIVE}${BOOT_PARTITION}" /mnt/boot
+		mount -v "${BOOT_DRIVE}$(if [ "${BOOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${BOOT_PARTITION}" /mnt/boot
 	fi
 	if [ "$IS_UEFI" = "true" ]; then
-		mount -v "${EFI_DRIVE}${EFI_PARTITION}" /mnt"${EFI_DIR}"
+		mount -v "${EFI_DRIVE}$(if [ "${EFI_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${EFI_PARTITION}" /mnt"${EFI_DIR}"
 	fi
 	
 	arch-chroot /mnt ln -sf /usr/share/zoneinfo/$TIMEZONE_REGION/$TIMEZONE_CITY /etc/localtime
@@ -412,9 +422,9 @@ os_installation() {
 	fi
 
 	if [ "$ENCRYPT" = "y" ]; then
-		if [ "$SWAP_TYPE" = "drive" ]; then
+		if [[ "$SWAP_TYPE" = "drive" || "$SWAP_TYPE" = "nvme" ]]; then
 			# Swap encryption
-			printf "swap\t%s\t/dev/urandom\tswap,cipher=aes-cbc-essiv:sha256,size=256\n" "$(find -L /dev/disk -samefile ${SWAP_DRIVE}${SWAP_PARTITION} | head -n1)" | tee -a /mnt/etc/crypttab
+			printf "swap\t%s\t/dev/urandom\tswap,cipher=aes-cbc-essiv:sha256,size=256\n" "$(find -L /dev/disk -samefile ${SWAP_DRIVE}"$(if [ "${SWAP_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)"${SWAP_PARTITION} | head -n1)" | tee -a /mnt/etc/crypttab
 			printf "/dev/mapper/swap\tnone\tswap\tdefaults\t0 0\n" >> /mnt/etc/fstab
 		fi
 
@@ -422,12 +432,12 @@ os_installation() {
 		for (( i=0; i<${#ADDITIONAL_DRIVES[@]}; i++ )); 
 		do
 			mv /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" /mnt/root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}.key"
-			printf "%s\tUUID=$(lsblk -dno UUID "${ADDITIONAL_DRIVES[$i]}${ADDITIONAL_PARTITION[$i]}")\t%s\n" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" "/root/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}.key" | tee -a /mnt/etc/crypttab
+			printf "%s\tUUID=$(lsblk -dno UUID "${ADDITIONAL_DRIVES[$i]}$(if [ "${ADDITIONAL_TYPE[$i]}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ADDITIONAL_PARTITION[$i]}")\t%s\n" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" "/root/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}.key" | tee -a /mnt/etc/crypttab
 		done
 
 		sed -i "s/HOOKS=(base udev autodetect modconf block filesystems keyboard fsck)/HOOKS=(base udev autodetect keyboard modconf block encrypt filesystems fsck)/" /mnt/etc/mkinitcpio.conf	
 
-		KernelParameters[${#KernelParameters[@]}]="cryptdevice=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}${ROOT_PARTITION}):root"
+		KernelParameters[${#KernelParameters[@]}]="cryptdevice=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}"$(if [ "${ROOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)"${ROOT_PARTITION}):root"
 		KernelParameters[${#KernelParameters[@]}]="root=/dev/mapper/root"
 	fi
 
@@ -445,7 +455,7 @@ os_installation() {
 		fi
 
 		if [ "$ENCRYPT" = "n" ]; then
-			KernelParameters[${#KernelParameters[@]}]="root=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}${ROOT_PARTITION})"
+			KernelParameters[${#KernelParameters[@]}]="root=UUID=$(lsblk -dno UUID ${ROOT_DRIVE}"$(if [ "${ROOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)"${ROOT_PARTITION})"
 		fi
 		KernelParameters[${#KernelParameters[@]}]="rw"
 
@@ -480,11 +490,11 @@ os_installation() {
 	# Post setup
 	mkdir -p /mnt/etc/pacman.d/hooks
 	if [ "$BOOT_DRIVE" != "root" ]; then
-		printf "[Trigger]\nType = Package\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nTarget = *\n\n[Action]\nDescription = Mounting boot\nWhen = PreTransaction\nExec = /usr/bin/mount -v %s /boot\n" "${BOOT_DRIVE}${BOOT_PARTITION}" > /mnt/etc/pacman.d/hooks/0-mount-boot.hook
+		printf "[Trigger]\nType = Package\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nTarget = *\n\n[Action]\nDescription = Mounting boot\nWhen = PreTransaction\nExec = /usr/bin/mount -v %s /boot\n" "${BOOT_DRIVE}$(if [ "${BOOT_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${BOOT_PARTITION}" > /mnt/etc/pacman.d/hooks/0-mount-boot.hook
 		printf "[Trigger]\nType = Package\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nTarget = *\n\n[Action]\nDescription = Un-Mounting boot\nWhen = PostTransaction\nExec = /usr/bin/umount -v /boot\n" > /mnt/etc/pacman.d/hooks/99-unmount-boot.hook
 	fi
 	if [ "$IS_UEFI" = "true" ]; then
-		printf "[Trigger]\nType = Package\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nTarget = *\n\n[Action]\nDescription = Mounting ESP\nWhen = PreTransaction\nExec = /usr/bin/mount -v %s %s\n" "${EFI_DRIVE}${EFI_PARTITION}" "${EFI_DIR}" > /mnt/etc/pacman.d/hooks/0-mount-esp.hook
+		printf "[Trigger]\nType = Package\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nTarget = *\n\n[Action]\nDescription = Mounting ESP\nWhen = PreTransaction\nExec = /usr/bin/mount -v %s %s\n" "${EFI_DRIVE}$(if [ "${EFI_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${EFI_PARTITION}" "${EFI_DIR}" > /mnt/etc/pacman.d/hooks/0-mount-esp.hook
 		printf "[Trigger]\nType = Package\nOperation = Upgrade\nOperation = Install\nOperation = Remove\nTarget = *\n\n[Action]\nDescription = Un-Mounting ESP\nWhen = PostTransaction\nExec = /usr/bin/umount -v %s\n" "${EFI_DIR}" > /mnt/etc/pacman.d/hooks/99-unmount-esp.hook
 	fi
 	if [[ "${Addons[*]}" =~ "SecureBoot" ]]; then

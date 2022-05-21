@@ -223,6 +223,7 @@ include /etc/sway/config.d/*
 
 exec nm-applet --indicator
 exec /usr/bin/dunst
+exec polkit-dumb-agent
 
 bindsym XF86AudioRaiseVolume exec pactl set-sink-volume 0 +2% #increase sound volume
 bindsym XF86AudioLowerVolume exec pactl set-sink-volume 0 -2% #decrease sound volume

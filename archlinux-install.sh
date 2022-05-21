@@ -313,7 +313,7 @@ install_addons() {
 		fi
 
 		if [ "$addon" = "Wi-Fi" ]; then
-			arch-chroot /mnt pacman -S --noconfirm --asexplicit networkmanager
+			arch-chroot /mnt pacman -S --noconfirm --asexplicit networkmanager nm-connection-editor network-manager-applet
 			arch-chroot /mnt systemctl enable NetworkManager.service
 			arch-chroot /mnt systemctl enable systemd-resolved.service
 
@@ -323,7 +323,6 @@ install_addons() {
 
 		if [ "$addon" = "Bluetooth" ]; then
 			arch-chroot /mnt pacman -S --noconfirm --asexplicit bluez bluez-utils blueman
-			arch-chroot /mnt modprobe btusb
 			arch-chroot /mnt systemctl enable bluetooth.service
 		fi
 
@@ -376,6 +375,7 @@ install_addons() {
 			cp /mnt"$secureBootDir"/windows/win_dbx.bin /mnt/etc/secureboot/keys/dbx/win_dbx.bin
 
 			arch-chroot /mnt sbkeysync --verbose
+			chattr -i /sys/firmware/efi/efivars/{PK,KEK,db,dbx}*
 			arch-chroot /mnt sbkeysync --verbose --pk
 		fi
 	done

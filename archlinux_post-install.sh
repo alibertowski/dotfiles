@@ -3,8 +3,12 @@
 
 # TODO:
 #   Add guide for multiple monitors
+#   Remove pywal setting in wayland
+#   Fix screenshots for wayland
+#   Fix wireless interfaces
 
 readonly VM="y"
+readonly GPU="vbox"
 readonly USER_NAME="alex"
 readonly ETHERNET="y"
 INTERFACE=$(ls /sys/class/net/ | grep en)
@@ -36,7 +40,7 @@ pre-install_setup() {
     sed -i "s/#ParallelDownloads/ParallelDownloads/" /etc/pacman.conf
     sed -i "s%#\[multilib\]%[multilib]\nInclude = /etc/pacman.d/mirrorlist%" /etc/pacman.conf
     pacman -Syu --noconfirm
-    pacman -S --noconfirm --asexplicit pipewire lib32-pipewire wireplumber pipewire-alsa pipewire-pulse galculator kitty neofetch flameshot ttc-iosevka dunst vulkan-icd-loader lib32-vulkan-icd-loader
+    pacman -S --noconfirm --asexplicit pipewire lib32-pipewire wireplumber pipewire-alsa pipewire-pulse galculator kitty neofetch flameshot dunst vulkan-icd-loader lib32-vulkan-icd-loader
 
     echo "Enter password for: ${USER_NAME}"
     passwd $USER_NAME
@@ -53,7 +57,10 @@ pre-install_setup() {
     rm -rf /home/"$USER_NAME"/yay
 
     echo "Insalling AUR packages"
-    sudo -u "$USER_NAME" yay -S polkit-dumb-agent-git all-repository-fonts
+    (
+        cd /home/"$USER_NAME" || exit
+        sudo -u "$USER_NAME" yay -S polkit-dumb-agent-git all-repository-fonts
+    )
 }
 
 install_dotfiles() {
@@ -78,7 +85,10 @@ wayland_install() {
     chown -R "$USER_NAME:$USER_NAME" "/home/$USER_NAME"
 
     pacman -S --noconfirm --asexplicit sway glfw-wayland xorg-xwayland waybar
-    sudo -u "$USER_NAME" yay -S sway-launcher-desktop
+    (
+        cd /home/"$USER_NAME" || exit
+        sudo -u "$USER_NAME" yay -S sway-launcher-desktop
+    )
 }
 
 pre-install_setup

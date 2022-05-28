@@ -17,7 +17,7 @@ readonly ENCRYPT="n"
 readonly NVIDIA="n"
 readonly VM="y"
 readonly DEBUG="y"
-readonly Addons=("DisableWatchdog" "Ethernet" "SecureBoot" "Bluetooth")
+readonly Addons=("DisableWatchdog" "Ethernet" "SecureBoot" "Bluetooth" "Windows")
 
 # Boot, Root, Swap, EFI, Additonal Drives
 readonly SWAP_DRIVE="/dev/sdb"
@@ -50,7 +50,7 @@ readonly EFI_LABEL="EFI"
 readonly EFI_NAME="EFI"
 readonly EFI_PARTITION="1"
 readonly EFI_DIR="/boot"
-readonly EFI_TYPE="nvme"
+readonly EFI_TYPE="nsvme"
 
 # Drive, Size, Name, Partition
 readonly ADDITIONAL_DRIVES=("/dev/sda" "/dev/sdb")
@@ -97,13 +97,6 @@ validate_variables() {
 		echo "'ENCRYPT' variable must be 'y' or 'n'"
 		exit 2
 	fi
-
-	# for addon in "${Addons[@]}"; do
-	# 	if [[ ! "${Addons[*]}" =~ $addon ]]; then
-	# 		printf "Only the following addons exist:\n\tDisableWatchdog\n\tEthernet\n\tWi-Fi\n\tSecureBoot\n"
-	# 		exit 2
-	# 	fi
-	# done
 }
 
 partition_drives() {
@@ -122,7 +115,7 @@ partition_drives() {
 		drivesToPart[${#drivesToPart[@]}]=$BOOT_DRIVE
 	fi
 	
-	if [[ "$IS_UEFI" = "true" && ! "${drivesToPart[*]}" =~ ${EFI_DRIVE} ]]; then
+	if [[ "$IS_UEFI" = "true" && ! "${Addons[*]}" =~ "windows" && ! "${drivesToPart[*]}" =~ ${EFI_DRIVE} ]]; then
 		drivesToPart[${#drivesToPart[@]}]=$EFI_DRIVE
 	fi
 
@@ -154,7 +147,7 @@ partition_drives() {
 			totalPartitions=$((totalPartitions + 1))
 		fi
 
-		if [[ "$IS_UEFI" = "true" && "$EFI_DRIVE" = "$drive" ]]; then
+		if [[ "$IS_UEFI" = "true" && ! "${Addons[*]}" =~ "windows" && "$EFI_DRIVE" = "$drive" ]]; then
 			totalPartitions=$((totalPartitions + 1))
 		fi
 
@@ -229,7 +222,7 @@ partition_drives() {
 				fi
 			done
 
-			if [[ "$IS_UEFI" = "true" && "$EFI_DRIVE" = "$drive" && "$EFI_PARTITION" -eq $currentPartition ]]; then
+			if [[ "$IS_UEFI" = "true" && ! "${Addons[*]}" =~ "windows" && "$EFI_DRIVE" = "$drive" && "$EFI_PARTITION" -eq $currentPartition ]]; then
 				parted -s "$drive" mkpart "$EFI_NAME" fat32 "${EFI_SIZE[0]}" "${EFI_SIZE[1]}"
 				parted -s "$drive" set "$EFI_PARTITION" esp on
 
@@ -360,23 +353,12 @@ install_addons() {
 			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_firmware.crt "https://www.microsoft.com/pkiops/certs/MicCorUEFCA2011_2011-06-27.crt"
 			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_dbx.bin "https://uefi.org/sites/default/files/resources/dbxupdate_x64.bin"
 
+			# TODO: Only add UEFI db key unless the 'Windows' addon is enabled
 			arch-chroot /mnt sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/win_boot.crt
 			arch-chroot /mnt sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_UEFI_db.esl "$secureBootDir"/windows/win_firmware.crt
 			arch-chroot /mnt cat "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/MS_UEFI_db.esl > /mnt"$secureBootDir"/windows/MS_db.esl
 
 			arch-chroot /mnt sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_db.esl "$secureBootDir"/windows/add_MS_db.auth
-
-			# Enrolling Keys
-			mkdir -p /mnt/etc/secureboot/keys/{db,dbx,KEK,PK}
-			cp /mnt"$secureBootDir"/PK/PK.auth /mnt/etc/secureboot/keys/PK/PK.auth
-			cp /mnt"$secureBootDir"/KEK/KEK.auth /mnt/etc/secureboot/keys/KEK/KEK.auth
-			cp /mnt"$secureBootDir"/db/db.auth /mnt/etc/secureboot/keys/db/db.auth
-			cp /mnt"$secureBootDir"/windows/add_MS_db.auth /mnt/etc/secureboot/keys/db/add_MS_db.auth
-			cp /mnt"$secureBootDir"/windows/win_dbx.bin /mnt/etc/secureboot/keys/dbx/win_dbx.bin
-
-			arch-chroot /mnt sbkeysync --verbose
-			chattr -i /sys/firmware/efi/efivars/{PK,KEK,db,dbx}*
-			arch-chroot /mnt sbkeysync --verbose --pk
 		fi
 	done
 }

@@ -8,28 +8,28 @@
 #	Make sure BIOS works with extended partitions - Not urgent
 #	Validation: Fat32 only has capital labels, etc - Not urgent
 
-readonly HOSTNAME="retro"
+readonly HOSTNAME="retro-desktop"
 readonly UEFI_LABEL="Arch Linux T"
 readonly TIMEZONE_REGION="America"
 readonly TIMEZONE_CITY="New_York"
 readonly CPU_TYPE="amd"
-readonly ENCRYPT="n"
-readonly NVIDIA="n"
+readonly ENCRYPT="y"
+readonly NVIDIA="y"
 readonly VM="y"
 readonly DEBUG="y"
 readonly Addons=("DisableWatchdog" "Ethernet" "SecureBoot" "Bluetooth" "Windows")
 
 # Boot, Root, Swap, EFI, Additonal Drives
-readonly SWAP_DRIVE="/dev/sdb"
-readonly SWAP_TYPE="drive" # Can be one of the following: (drive, nvme, or none)
-readonly SWAP_SIZE=("1MiB" "1GiB")
+readonly SWAP_DRIVE="/dev/nvme0n1"
+readonly SWAP_TYPE="nvme" # Can be one of the following: (drive, nvme, or none)
+readonly SWAP_SIZE=("1MiB" "12GiB")
 readonly SWAP_LABEL="Swap"
 readonly SWAP_NAME="LinuxSwap"
 readonly SWAP_PARTITION="1"
 
 # Drive, Size, Name, Partition
-readonly ROOT_DRIVE="/dev/sda"
-readonly ROOT_SIZE=("1GiB" "8GiB")
+readonly ROOT_DRIVE="/dev/nvme0n1"
+readonly ROOT_SIZE=("12GiB" "100%")
 readonly ROOT_LABEL="Root"
 readonly ROOT_NAME="LinuxRoot"
 readonly ROOT_PARTITION="2"
@@ -45,7 +45,7 @@ readonly BOOT_TYPE="nvme"
 
 # Drive, Size, Name, Partition
 readonly EFI_DRIVE="/dev/sda"
-readonly EFI_SIZE=("1MiB" "1GiB")
+readonly EFI_SIZE=("1MiB" "600MiB")
 readonly EFI_LABEL="EFI"
 readonly EFI_NAME="EFI"
 readonly EFI_PARTITION="1"
@@ -223,7 +223,7 @@ partition_drives() {
 			done
 
 			if [[ "$IS_UEFI" = "true" && "$EFI_DRIVE" = "$drive" && "$EFI_PARTITION" -eq $currentPartition ]]; then
-				if [[ "${Addons[*]}" =~ "Windows" ]]; then
+				if [[ ! "${Addons[*]}" =~ "Windows" ]]; then
 					parted -s "$drive" mkpart "$EFI_NAME" fat32 "${EFI_SIZE[0]}" "${EFI_SIZE[1]}"
 					parted -s "$drive" set "$EFI_PARTITION" esp on
 
@@ -327,6 +327,8 @@ install_addons() {
 
 			local secureBootDir="/root/secure-boot"
 			mkdir -p /mnt"$secureBootDir"/{db,dbx,KEK,PK,windows,backups}
+
+			# Current key backup
 			arch-chroot /mnt efi-readvar -v PK -o "$secureBootDir"/backups/old_PK.esl
 			arch-chroot /mnt efi-readvar -v KEK -o "$secureBootDir"/backups/old_KEK.esl
 			arch-chroot /mnt efi-readvar -v db -o "$secureBootDir"/backups/old_db.esl
@@ -356,15 +358,15 @@ install_addons() {
 				arch-chroot /mnt curl -o "$secureBootDir"/windows/win_boot.crt "https://www.microsoft.com/pkiops/certs/MicWinProPCA2011_2011-10-19.crt"
 			fi
 			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_firmware.crt "https://www.microsoft.com/pkiops/certs/MicCorUEFCA2011_2011-06-27.crt"
-			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_dbx.bin "https://uefi.org/sites/default/files/resources/dbxupdate_x64.bin"
+			arch-chroot /mnt curl -o "$secureBootDir"/dbx/win_dbx.auth "https://uefi.org/sites/default/files/resources/dbxupdate_x64.bin"
 
 			arch-chroot /mnt sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_UEFI_db.esl "$secureBootDir"/windows/win_firmware.crt
 			if [[ "${Addons[*]}" =~ "Windows" ]]; then
 				arch-chroot /mnt sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/win_boot.crt
 				arch-chroot /mnt cat "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/MS_UEFI_db.esl > /mnt"$secureBootDir"/windows/MS_db.esl
-				arch-chroot /mnt sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_db.esl "$secureBootDir"/windows/add_MS_db.auth
+				arch-chroot /mnt sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_db.esl "$secureBootDir"/db/add_MS_db.auth
 			else
-				arch-chroot /mnt sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_UEFI_db.esl "$secureBootDir"/windows/add_MS_db.auth
+				arch-chroot /mnt sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_UEFI_db.esl "$secureBootDir"/db/add_MS_db.auth
 			fi
 		fi
 	done

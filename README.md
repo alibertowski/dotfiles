@@ -31,12 +31,11 @@ Just my attempt at a dotfiles. This repository contains two scripts that will fu
 # Tested Setups
 * UEFI/GPT, No Encryption, No Secure Boot - Works
 * UEFI/GPT, Encryption, No Secure Boot - Works
-* UEFI/GPT, Encryption, Secure Boot (TODO - Needs a real system)
+* UEFI/GPT, Encryption, Secure Boot - Works
 * BIOS/MBR, No Encryption (TODO)
 * BIOS/MBR, Encryption (TODO)
 
 ## TODO
-* Finish up the wayland setup
 * Finish extended partitions for BIOS
 * Add guide for multi-monitor setups
 * Finish Validation

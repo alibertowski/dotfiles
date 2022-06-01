@@ -115,7 +115,7 @@ partition_drives() {
 		drivesToPart[${#drivesToPart[@]}]=$BOOT_DRIVE
 	fi
 	
-	if [[ "$IS_UEFI" = "true" && ! "${Addons[*]}" =~ "windows" && ! "${drivesToPart[*]}" =~ ${EFI_DRIVE} ]]; then
+	if [[ "$IS_UEFI" = "true" && ! "${drivesToPart[*]}" =~ ${EFI_DRIVE} ]]; then
 		drivesToPart[${#drivesToPart[@]}]=$EFI_DRIVE
 	fi
 
@@ -147,7 +147,7 @@ partition_drives() {
 			totalPartitions=$((totalPartitions + 1))
 		fi
 
-		if [[ "$IS_UEFI" = "true" && ! "${Addons[*]}" =~ "windows" && "$EFI_DRIVE" = "$drive" ]]; then
+		if [[ "$IS_UEFI" = "true" && "$EFI_DRIVE" = "$drive" ]]; then
 			totalPartitions=$((totalPartitions + 1))
 		fi
 
@@ -222,11 +222,14 @@ partition_drives() {
 				fi
 			done
 
-			if [[ "$IS_UEFI" = "true" && ! "${Addons[*]}" =~ "windows" && "$EFI_DRIVE" = "$drive" && "$EFI_PARTITION" -eq $currentPartition ]]; then
-				parted -s "$drive" mkpart "$EFI_NAME" fat32 "${EFI_SIZE[0]}" "${EFI_SIZE[1]}"
-				parted -s "$drive" set "$EFI_PARTITION" esp on
+			if [[ "$IS_UEFI" = "true" && "$EFI_DRIVE" = "$drive" && "$EFI_PARTITION" -eq $currentPartition ]]; then
+				if [[ "${Addons[*]}" =~ "Windows" ]]; then
+					parted -s "$drive" mkpart "$EFI_NAME" fat32 "${EFI_SIZE[0]}" "${EFI_SIZE[1]}"
+					parted -s "$drive" set "$EFI_PARTITION" esp on
 
-				mkfs.fat -F 32 -n "$EFI_LABEL" "${EFI_DRIVE}$(if [ "${EFI_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${EFI_PARTITION}"
+					mkfs.fat -F 32 -n "$EFI_LABEL" "${EFI_DRIVE}$(if [ "${EFI_TYPE}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${EFI_PARTITION}"
+				fi
+
 				currentPartition=$((currentPartition + 1))
 			fi
 
@@ -349,16 +352,20 @@ install_addons() {
 			arch-chroot /mnt sign-efi-sig-list -g "$(< /mnt"$secureBootDir"/GUID.txt)" -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/db/db.esl "$secureBootDir"/db/db.auth
 
 			# Windows signatures
-			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_boot.crt "https://www.microsoft.com/pkiops/certs/MicWinProPCA2011_2011-10-19.crt"
+			if [[ "${Addons[*]}" =~ "Windows" ]]; then
+				arch-chroot /mnt curl -o "$secureBootDir"/windows/win_boot.crt "https://www.microsoft.com/pkiops/certs/MicWinProPCA2011_2011-10-19.crt"
+			fi
 			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_firmware.crt "https://www.microsoft.com/pkiops/certs/MicCorUEFCA2011_2011-06-27.crt"
 			arch-chroot /mnt curl -o "$secureBootDir"/windows/win_dbx.bin "https://uefi.org/sites/default/files/resources/dbxupdate_x64.bin"
 
-			# TODO: Only add UEFI db key unless the 'Windows' addon is enabled
-			arch-chroot /mnt sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/win_boot.crt
 			arch-chroot /mnt sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_UEFI_db.esl "$secureBootDir"/windows/win_firmware.crt
-			arch-chroot /mnt cat "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/MS_UEFI_db.esl > /mnt"$secureBootDir"/windows/MS_db.esl
-
-			arch-chroot /mnt sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_db.esl "$secureBootDir"/windows/add_MS_db.auth
+			if [[ "${Addons[*]}" =~ "Windows" ]]; then
+				arch-chroot /mnt sbsiglist --owner 77fa9abd-0359-4d32-bd60-28f4e78f784b --type x509 --output "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/win_boot.crt
+				arch-chroot /mnt cat "$secureBootDir"/windows/MS_Win_db.esl "$secureBootDir"/windows/MS_UEFI_db.esl > /mnt"$secureBootDir"/windows/MS_db.esl
+				arch-chroot /mnt sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_db.esl "$secureBootDir"/windows/add_MS_db.auth
+			else
+				arch-chroot /mnt sign-efi-sig-list -a -g 77fa9abd-0359-4d32-bd60-28f4e78f784b -k "$secureBootDir"/KEK/KEK.key -c "$secureBootDir"/KEK/KEK.crt db "$secureBootDir"/windows/MS_UEFI_db.esl "$secureBootDir"/windows/add_MS_db.auth
+			fi
 		fi
 	done
 }

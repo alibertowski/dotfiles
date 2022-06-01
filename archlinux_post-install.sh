@@ -74,7 +74,7 @@ xorg_install() {
     cp -r ./configurations/xorg/. "/home/$USER_NAME"
     chown -R "$USER_NAME:$USER_NAME" "/home/$USER_NAME"
 
-    pacman -S --noconfirm --asexplicit xorg xorg-xinit bspwm sxhkd python-pywal picom feh rofi polybar
+    pacman -S --noconfirm --asexplicit xorg xorg-xinit bspwm sxhkd python-pywal feh rofi polybar
     sudo -u "$USER_NAME" wal -n -i "/home/$USER_NAME/pictures/space.jpg"
 }
 

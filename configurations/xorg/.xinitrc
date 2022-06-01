@@ -51,6 +51,5 @@ fi
 export _JAVA_OPTIONS='-Dsun.java2d.opengl=true'
 wal -R
 xsetroot -cursor_name left_ptr
-picom --experimental-backend -b
 polkit-dumb-agent &
 exec bspwm

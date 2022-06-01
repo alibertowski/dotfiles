@@ -3,8 +3,8 @@ Just my attempt at a dotfiles. This repository contains two scripts that will fu
 
 ## Pre-Install
 * For encryption, be sure to fully [wipe](https://wiki.archlinux.org/title/Dm-crypt/Drive_preparation#Generic_methods) your drives
-* If dual-booting Windows, make sure to disable fast boot, hibernation, and set the default hardware time to UTC
-* If installing with secure boot, make sure to delete any pre-existing keys in the BIOS
+* If dual-booting Windows, make sure to disable fast boot, hibernation, create an ESP that's a good size before starting (500-600MiB) and set the default hardware time to UTC
+* If installing with secure boot, make sure to delete any pre-existing keys in the BIOS and turn it off
 
 ## Installation
 1. Boot up in the arch ISO
@@ -20,6 +20,7 @@ Just my attempt at a dotfiles. This repository contains two scripts that will fu
 11. And you're done!
 
 ## Post-Install Description
+* If secure boot was installed, sync it using sbsync or manually through the UEFI. After that, turn secure boot on
 * Nvidia drivers will always use xorg with the BSPWM setup included
 * AMD drivers will always use Wayland with the Swap setup included
 

@@ -68,6 +68,8 @@ KernelParameters=()
 NonFallbackParameters=("loglevel=3" "quiet")
 
 validate_variables() {
+	echo "Validating variables"
+
 	if [ "$DEBUG" == "y" ]; then
 		echo "Debug mode is turned on. Set the 'DEBUG' variable to something other than 'y' to run the installation"
 		exit 2
@@ -100,6 +102,8 @@ validate_variables() {
 }
 
 partition_drives() {
+	echo "Partitioning Drives"
+
 	# Check each drive type for their device
 	local drivesToPart=()
 
@@ -129,7 +133,9 @@ partition_drives() {
 		local totalPartitions="0"
 		local currentPartition="1"
 		if [ "$IS_UEFI" = "true" ]; then
-			parted -s "$drive" mklabel gpt
+			if [[ ! ("${Addons[*]}" =~ "Windows" && "$drive" = "$EFI_DRIVE") ]]; then
+				parted -s "$drive" mklabel gpt
+			fi
 		else
 			parted -s "$drive" mklabel msdos
 		fi
@@ -160,6 +166,7 @@ partition_drives() {
 		while [ $currentPartition -le "$totalPartitions" ]; do
 			# Partitioning any needed drives
 			if [[ "$SWAP_DRIVE" = "$drive" && $SWAP_PARTITION -eq $currentPartition ]]; then
+				echo "Partioning Swap"
 				if [ "$IS_UEFI" = "true" ]; then
 					parted -s "$drive" mkpart "$SWAP_NAME" linux-swap "${SWAP_SIZE[0]}" "${SWAP_SIZE[1]}"
 				else
@@ -175,6 +182,7 @@ partition_drives() {
 			fi
 
 			if [[ "$ROOT_DRIVE" = "$drive" && "$ROOT_PARTITION" -eq "$currentPartition" ]]; then
+				echo "Partioning Root"
 				if [ "$IS_UEFI" = "true" ]; then
 					parted -s "$drive" mkpart "$ROOT_NAME" ext4 "${ROOT_SIZE[0]}" "${ROOT_SIZE[1]}"
 				else
@@ -201,6 +209,7 @@ partition_drives() {
 			for (( i=0; i<${#ADDITIONAL_DRIVES[@]}; i++ )); 
 			do
 				if [[ "${ADDITIONAL_DRIVES[$i]}" = "$drive" && "${ADDITIONAL_PARTITION[$i]}" -eq "$currentPartition" ]]; then
+					printf "Partioning Additional Drive: %s" "$drive"
 					if [ "$IS_UEFI" = "true" ]; then
 						parted -s "$drive" mkpart "${ADDITIONAL_NAME[$i]}" ext4 "${ADDITIONAL_SIZE1[$i]}" "${ADDITIONAL_SIZE2[$i]}"
 					else
@@ -223,6 +232,7 @@ partition_drives() {
 			done
 
 			if [[ "$IS_UEFI" = "true" && "$EFI_DRIVE" = "$drive" && "$EFI_PARTITION" -eq $currentPartition ]]; then
+				echo "Partioning ESP"
 				if [[ ! "${Addons[*]}" =~ "Windows" ]]; then
 					parted -s "$drive" mkpart "$EFI_NAME" fat32 "${EFI_SIZE[0]}" "${EFI_SIZE[1]}"
 					parted -s "$drive" set "$EFI_PARTITION" esp on
@@ -234,6 +244,7 @@ partition_drives() {
 			fi
 
 			if [[ "$BOOT_DRIVE" = "$drive" && "$BOOT_PARTITION" -eq "$currentPartition" ]]; then
+				echo "Partioning Boot"
 				if [ "$IS_UEFI" = "true" ]; then
 					parted -s "$drive" mkpart "$BOOT_NAME" fat32 "${BOOT_SIZE[0]}" "${BOOT_SIZE[1]}"
 					parted -s "$drive" set "$BOOT_PARTITION" bls_boot on
@@ -299,16 +310,19 @@ pre_checks() {
 install_addons() {
 	for addon in "${Addons[@]}"; do
 		if [ "$addon" = "DisableWatchdog" ]; then
+			echo "Installing Disable Watchdog addon"
 			KernelParameters[${#KernelParameters[@]}]="nowatchdog"
 			printf "blacklist iTCO_wdt\n" > /mnt/etc/modprobe.d/nowatchdog.conf
 		fi
 
 		if [ "$addon" = "Ethernet" ]; then
+			echo "Installing Ethernet addon"
 			arch-chroot /mnt pacman -S --noconfirm --asexplicit dhcpcd
 			printf "noarp\n" >> /mnt/etc/dhcpcd.conf
 		fi
 
 		if [ "$addon" = "Wi-Fi" ]; then
+			echo "Installing Wi-Fi addon"
 			arch-chroot /mnt pacman -S --noconfirm --asexplicit networkmanager nm-connection-editor network-manager-applet
 			arch-chroot /mnt systemctl enable NetworkManager.service
 			arch-chroot /mnt systemctl enable systemd-resolved.service
@@ -318,11 +332,13 @@ install_addons() {
 		fi
 
 		if [ "$addon" = "Bluetooth" ]; then
+			echo "Installing bluetooth addon"
 			arch-chroot /mnt pacman -S --noconfirm --asexplicit bluez bluez-utils blueman
 			arch-chroot /mnt systemctl enable bluetooth.service
 		fi
 
 		if [ "$addon" = "SecureBoot" ]; then
+			echo "Installing Secure boot addon"
 			arch-chroot /mnt pacman -S --noconfirm --asexplicit sbsigntools efitools
 
 			local secureBootDir="/root/secure-boot"
@@ -373,6 +389,7 @@ install_addons() {
 }
 
 os_installation() {
+	echo "Installing your system"
 	pacstrap /mnt "${PackagesNeeded[@]}"
 
 	if [ "$BOOT_DRIVE" != "root" ]; then
@@ -382,6 +399,7 @@ os_installation() {
 		umount -v /mnt"${EFI_DIR}"
 	fi
 
+	echo "Generating fstab"
 	genfstab -U /mnt >> /mnt/etc/fstab
 
 	if [ "$BOOT_DRIVE" != "root" ]; then

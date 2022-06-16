@@ -40,7 +40,7 @@ pre-install_setup() {
     sed -i "s/#ParallelDownloads/ParallelDownloads/" /etc/pacman.conf
     sed -i "s%#\[multilib\]%[multilib]\nInclude = /etc/pacman.d/mirrorlist%" /etc/pacman.conf
     pacman -Syu --noconfirm
-    pacman -S --noconfirm --asexplicit pipewire lib32-pipewire wireplumber pipewire-alsa pipewire-pulse galculator kitty neofetch flameshot dunst vulkan-icd-loader lib32-vulkan-icd-loader thunar gvfs thunar-archive-plugin xarchiver tumbler
+    pacman -S --noconfirm --asexplicit pipewire lib32-pipewire wireplumber pipewire-alsa pipewire-pulse galculator kitty neofetch flameshot dunst vulkan-icd-loader lib32-vulkan-icd-loader thunar gvfs thunar-archive-plugin file-roller tumbler
 
     echo "Enter password for: ${USER_NAME}"
     passwd $USER_NAME

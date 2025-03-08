@@ -1,3 +1,4 @@
-export EDITOR=vim
+export EDITOR=vi
 systemctl --failed
-journalctl -p 3 -b
+journalctl -p 4 -x -b
+grep -e Log -e tty Xorg.0.log

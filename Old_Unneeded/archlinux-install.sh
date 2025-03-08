@@ -7,6 +7,7 @@
 #	Test Secure Boot, Sign the EFI binary whenver a new one is built
 #	Make sure BIOS works with extended partitions - Not urgent
 #	Validation: Fat32 only has capital labels, etc - Not urgent
+#	EFI or boot partition can be ext4 (Maybe?)
 
 readonly HOSTNAME="retro-desktop"
 readonly UEFI_LABEL="Arch Linux T"
@@ -50,7 +51,7 @@ readonly EFI_LABEL="EFI"
 readonly EFI_NAME="EFI"
 readonly EFI_PARTITION="1"
 readonly EFI_DIR="/boot"
-readonly EFI_TYPE="nsvme"
+readonly EFI_TYPE="nvme"
 
 # Drive, Size, Name, Partition
 readonly ADDITIONAL_DRIVES=("/dev/sda" "/dev/sdb")
@@ -63,7 +64,7 @@ readonly ADDITIONAL_MOUNTPOINT=("/mnt/root/test" "/mnt/home/alex")
 readonly ADDITIONAL_ENCRYPTION_MAPPING=("test" "other")
 readonly ADDITIONAL_TYPE=("nvme" "nvme")
 
-PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw python python2 man-db man-pages texinfo git polkit htop base-devel)
+PackagesNeeded=(base linux linux-firmware iptables-nft sudo pacman-contrib vim ufw python python2 man-db man-pages texinfo git polkit htop base-devel noto-fonts)
 KernelParameters=()
 NonFallbackParameters=("loglevel=3" "quiet")
 
@@ -303,8 +304,6 @@ pre_checks() {
 	if [ "$ENCRYPT" = "y" ]; then
 		modprobe dm_crypt
 	fi
-
-	timedatectl set-ntp true
 }
 
 install_addons() {
@@ -317,13 +316,13 @@ install_addons() {
 
 		if [ "$addon" = "Ethernet" ]; then
 			echo "Installing Ethernet addon"
-			arch-chroot /mnt pacman -S --noconfirm --asexplicit dhcpcd
+			arch-chroot /mnt pacman -S --asexplicit dhcpcd
 			printf "noarp\n" >> /mnt/etc/dhcpcd.conf
 		fi
 
 		if [ "$addon" = "Wi-Fi" ]; then
 			echo "Installing Wi-Fi addon"
-			arch-chroot /mnt pacman -S --noconfirm --asexplicit networkmanager nm-connection-editor network-manager-applet
+			arch-chroot /mnt pacman -S --asexplicit networkmanager nm-connection-editor network-manager-applet
 			arch-chroot /mnt systemctl enable NetworkManager.service
 			arch-chroot /mnt systemctl enable systemd-resolved.service
 
@@ -333,13 +332,13 @@ install_addons() {
 
 		if [ "$addon" = "Bluetooth" ]; then
 			echo "Installing bluetooth addon"
-			arch-chroot /mnt pacman -S --noconfirm --asexplicit bluez bluez-utils blueman
+			arch-chroot /mnt pacman -S --asexplicit bluez bluez-utils blueman
 			arch-chroot /mnt systemctl enable bluetooth.service
 		fi
 
 		if [ "$addon" = "SecureBoot" ]; then
 			echo "Installing Secure boot addon"
-			arch-chroot /mnt pacman -S --noconfirm --asexplicit sbsigntools efitools
+			arch-chroot /mnt pacman -S --asexplicit sbsigntools efitools
 
 			local secureBootDir="/root/secure-boot"
 			mkdir -p /mnt"$secureBootDir"/{db,dbx,KEK,PK,windows,backups}
@@ -422,7 +421,7 @@ os_installation() {
 	install_addons
 
 	if [ "$VM" = "y" ]; then
-		arch-chroot /mnt pacman -S --noconfirm --asexplicit virtualbox-guest-utils
+		arch-chroot /mnt pacman -S --asexplicit virtualbox-guest-utils
 		arch-chroot /mnt systemctl enable vboxservice.service
 	fi
 
@@ -438,7 +437,7 @@ os_installation() {
 		fi
 
 		# Additional Drive encryption
-		for (( i=0; i<${#ADDITIONAL_DRIVES[@]}; i++ )); 
+		for (( i=0; i<${#ADDITIONAL_DRIVES[@]}; i++ ));
 		do
 			mv /root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" /mnt/root/"${ADDITIONAL_ENCRYPTION_MAPPING[$i]}.key"
 			printf "%s\tUUID=$(lsblk -dno UUID "${ADDITIONAL_DRIVES[$i]}$(if [ "${ADDITIONAL_TYPE[$i]}" = "nvme" ]; then echo "p" ;else echo "" ;fi)${ADDITIONAL_PARTITION[$i]}")\t%s\n" "${ADDITIONAL_ENCRYPTION_MAPPING[$i]}" "/root/${ADDITIONAL_ENCRYPTION_MAPPING[$i]}.key" | tee -a /mnt/etc/crypttab

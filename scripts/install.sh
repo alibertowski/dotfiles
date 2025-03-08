@@ -19,7 +19,7 @@ echo "Boot Mode: $(cat /sys/firmware/efi/fw_platform_size)"
 # ./partition.sh '/dev/sda' dos "-,8G,S,-\n-,+,L,+"
 ./partition.sh '/dev/sda' gpt "-,8G,S,-\n-,1G,U,-\n-,+,L,-"
 
-mkfs.fat -F 32 -n EFI '/dev/sda1'
+mkfs.fat -F 32 -n ESP '/dev/sda1'
 mkswap -L SWAP '/dev/sda2'
 mkfs.ext4 -L Root '/dev/sda3'
 

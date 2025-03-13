@@ -11,3 +11,5 @@ arch-chroot /mnt systemctl enable paccache.timer
     printf "::1\tlocalhost\n"
     printf "127.0.1.1\tretro-desktop\n"
 } >> /mnt/etc/hosts
+
+echo EDITOR=vim >> /mnt/etc/environment

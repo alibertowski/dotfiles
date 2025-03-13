@@ -24,7 +24,7 @@ bspc rule -a Gimp state=floating follow=on
 xrandr --output Virtual1 --mode 1400x1050 --primary
 
 # Wallpaper
-# feh --bg-scale "$HOME/pictures/space.jpg"
+feh --bg-scale "$HOME/pictures/space.jpg"
 
 # Polybar
 "$HOME"/.config/polybar/launch.sh

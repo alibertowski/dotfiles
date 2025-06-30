@@ -1,4 +1,9 @@
-user_pref("keyword.enabled", true);
-user_pref("extensions.update.enabled", true);
-user_pref("signon.rememberSignons", false);
-user_pref("general.autoScroll", true);
+// Whenever updating Arkenfox, CHECK for any errors in the browser console (Ctrl + Shift + J)
+
+// Enabling RFP which does not break any commonly visited site that I go toGMTString
+// Letterboxing is just an additive, probably optional
+user_pref("privacy.resistFingerprinting", true);
+user_pref("privacy.resistFingerprinting.letterboxing", true);
+
+// Upgrade local sites to https by default
+user_pref("dom.security.https_only_mode.upgrade_local", true);

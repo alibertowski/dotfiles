@@ -7,3 +7,11 @@ user_pref("privacy.resistFingerprinting.letterboxing", true);
 
 // Upgrade local sites to https by default
 user_pref("dom.security.https_only_mode.upgrade_local", true);
+
+// Auto disabling Firefox settings
+user_pref("extensions.formautofill.addresses.enabled", false);
+user_pref("extensions.formautofill.creditCards.enabled", false);
+user_pref("signon.rememberSignons", false);
+
+// 5 turns off DoH. Only keep it off if using a VPN with SOCKS (for my usecase). Switch to 3 if not using VPN
+user_pref("network.trr.mode", 5);

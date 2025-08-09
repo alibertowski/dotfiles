@@ -6,7 +6,7 @@ pgrep -x sxhkd > /dev/null || sxhkd &
 # bspc monitor DP-4 -d I II III IV V 
 # bspc monitor HDMI-0 -d VI VII VIII IX X
 
-bspc monitor -d I II III IV V VI VII VIII IX X
+bspc monitor -d 一 二 三 四 五 六 七 八 九 十
 
 bspc config border_width         2
 bspc config window_gap          12
@@ -28,14 +28,21 @@ bspc rule -a mplayer2 state=floating
 bspc rule -a Kupfer.py focus=on
 bspc rule -a Screenkey manage=off
 
+VBoxClient-all # TODO: Remove this when not doing virtualbox
+
 # Resolution
-#xrandr --output Virtual1 --mode 1400x1050 --primary
+xrandr --output Virtual-1 --mode 1400x1050 --primary # TODO: May not be needed with nvidia control panel
 
 # Wallpaper
-#feh --bg-scale "$HOME/pictures/leaf.png"
+feh --bg-scale "$HOME/pictures/leaf.png"
 
 # Polybar
-# "$HOME"/.config/polybar/launch.sh
+"$HOME"/.config/polybar/launch.sh
 
 # Dunst
-/usr/bin/dunst
+/usr/bin/dunst &
+
+# Session lock on sleep
+xss-lock --transfer-sleep-lock -- i3lock --nofork &
+
+# aa-notify -p -s 1 -w 60 -f /var/log/audit/audit.log # TODO: Verify this works

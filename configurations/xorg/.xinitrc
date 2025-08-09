@@ -49,8 +49,5 @@ if [ -d "$xinitdir"/xinitrc.d ] ; then
 	unset f
 fi
 
-#export _JAVA_OPTIONS='-Dsun.java2d.opengl=true'
-#wal -R
-# xsetroot -cursor_name left_ptr
-#polkit-dumb-agent &
+#polkit-dumb-agent & #TODO: Polkit stuff
 exec bspwm

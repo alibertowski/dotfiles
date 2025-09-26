@@ -1,0 +1,12 @@
+[mgr]
+linemode = "size"
+show_hidden = true
+sort_by = "mtime"
+
+[preview]
+wrap = "yes"
+
+[opener]
+edit = [
+	{ run = 'nvim %*', block = true,  desc = "neovim",   for = "windows" }
+]

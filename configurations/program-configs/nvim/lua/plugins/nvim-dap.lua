@@ -1,3 +1,6 @@
 return {
-	"mfussenegger/nvim-dap"
+	"mfussenegger/nvim-dap",
+	dependencies = {
+		"igorlfs/nvim-dap-view"
+	}
 }

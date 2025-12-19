@@ -13,6 +13,11 @@ vim.wo.number = true
 vim.wo.relativenumber = true
 vim.g.mapleader = " "
 
+vim.api.nvim_create_autocmd({ "BufWritePre" }, {
+  pattern = { "*" },
+  command = [[%s/\s\+$//e]],
+})
+
 -- Enable LSP configurations
 vim.lsp.enable('vtsls')
 
@@ -27,7 +32,7 @@ vim.keymap.set('n', '<leader>fb', builtin.buffers, { desc = 'Telescope buffers' 
 vim.keymap.set('n', '<leader>fh', builtin.help_tags, { desc = 'Telescope help tags' })
 
 local dap = require('dap')
-vim.keymap.set('n', '<Leader>b', function() dap.toggle_breakpoint() end) 
+vim.keymap.set('n', '<Leader>b', function() dap.toggle_breakpoint() end)
 vim.keymap.set('n', '<F5>', function() dap.continue() end)
 vim.keymap.set('n', '<F10>', function() dap.step_over() end)
 vim.keymap.set('n', '<F11>', function() dap.step_into() end)
@@ -45,7 +50,7 @@ dap.adapters["pwa-node"] = {
     command = "node",
     -- 💀 Make sure to update this path to point to your installation
     args = {"/home/retro/Downloads/js-debug/src/dapDebugServer.js", "${port}"},
-  }      
+  }
 }
 
 dap.configurations.javascript = {

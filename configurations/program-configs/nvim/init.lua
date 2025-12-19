@@ -1,8 +1,4 @@
 require("config.lazy")
--- local robloxLsp = require("roblox_luau_lsp")
-
--- vim.lsp.config["roblox-luau-lsp"] = robloxLsp 
--- vim.lsp.enable("roblox-luau-lsp")
 
 -- Disable optional (unused) providers
 vim.g.loaded_ruby_provider = 0

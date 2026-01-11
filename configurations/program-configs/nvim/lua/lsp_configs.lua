@@ -10,7 +10,7 @@ vim.lsp.config("jsonls", {
 vim.lsp.config("luau_lsp", {
 	cmd = vim.iter({
 		vim.lsp.config["luau_lsp"]["cmd"],
-		{ "--definitions", "@roblox=/home/retro/binaries/globalTypes.d.luau" },
+		{ "--definitions", "@roblox=/home/retro/binaries/globalTypes.d.luau" }, -- FIXME: If using this LSP, update this file path
 	})
 		:flatten()
 		:totable(),
@@ -80,6 +80,7 @@ vim.lsp.config("lua_ls", {
 	},
 })
 
+-- FIXME: Comment out whichever LSPs aren't needed
 -- Enable LSP configurations
 vim.lsp.enable("lua_ls")
 vim.lsp.enable("luau_lsp")

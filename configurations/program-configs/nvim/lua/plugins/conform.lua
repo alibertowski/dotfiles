@@ -6,6 +6,7 @@ return {
 		default_format_opts = {
 			lsp_format = "fallback",
 		},
+		-- FIXME: Add/Remove formatters by what's needed
 		formatters_by_ft = {
 			python = {
 				-- To fix auto-fixable lint errors.

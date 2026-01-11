@@ -18,6 +18,7 @@ vim.api.nvim_create_autocmd({ "BufWritePre" }, {
 	command = [[%s/\s\+$//e]],
 })
 
+-- Full screen the help pages
 vim.api.nvim_create_autocmd("FileType", {
 	pattern = "help",
 	callback = function()

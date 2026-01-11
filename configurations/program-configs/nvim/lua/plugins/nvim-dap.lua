@@ -7,6 +7,7 @@ return {
 		vim.fn.sign_define("DapBreakpoint", { text = "⬤", texthl = "DapBreakpoint", linehl = "", numhl = "" })
 		vim.api.nvim_set_hl(0, "DapBreakpoint", { fg = "#FF5555" })
 
+		-- FIXME: Update/comment any needed configurations
 		local dap = require("dap")
 		dap.adapters["pwa-node"] = {
 			type = "server",
@@ -14,7 +15,7 @@ return {
 			port = "${port}",
 			executable = {
 				command = "node",
-				-- 💀 TODO: Make sure to update this path to point to your installation
+				-- FIXME: Make sure to update this path to point to your installation
 				args = { "/home/retro/Downloads/js-debug/src/dapDebugServer.js", "${port}" },
 			},
 		}

@@ -5,7 +5,7 @@ return {
 
 		local is_windows = vim.fn.has("win32")
 		if is_windows == 1 then
-			vim.g.undotree_DiffCommand = "C:\\Progra~1\\Git\\usr\\bin\\diff.exe"
+			vim.g.undotree_DiffCommand = "C:\\Progra~1\\Git\\usr\\bin\\diff.exe" -- FIXME: If on windows, make sure this path is correct. (Git Bash contains diff.exe)
 		end
 	end,
 	cmd = { "UndotreeShow" },

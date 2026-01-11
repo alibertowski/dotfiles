@@ -8,5 +8,5 @@ wrap = "yes"
 
 [opener]
 edit = [
-	{ run = 'nvim %*', block = true,  desc = "neovim",   for = "windows" }
+	{ run = 'nvim %*', block = true, desc = "neovim", for = "windows" },
 ]

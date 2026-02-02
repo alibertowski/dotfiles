@@ -3,11 +3,10 @@ return {
 	lazy = false,
 	branch = "main",
 	build = ":TSUpdate",
-	-- FIXME: Update file types by what's needed
 	config = function()
-		require("nvim-treesitter").install({ "javascript", "lua", "python" })
+		require("nvim-treesitter").install({ "javascript", "lua", "python", "c", "cpp" })
 		vim.api.nvim_create_autocmd("FileType", {
-			pattern = { "lua", "javascript", "python" },
+			pattern = { "lua", "javascript", "python", "c", "cpp" },
 			callback = function()
 				vim.treesitter.start()
 			end,

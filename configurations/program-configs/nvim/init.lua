@@ -26,4 +26,7 @@ vim.api.nvim_create_autocmd("FileType", {
 	end,
 })
 
+local telescope = require("telescope")
+telescope.load_extension("workspaces")
+
 -- TODO: Tag plugin versions and neovim version

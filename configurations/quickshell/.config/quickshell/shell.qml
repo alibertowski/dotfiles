@@ -1,13 +1,23 @@
+import QtQuick
 import Quickshell
 
 Scope {
-    //    AppLauncher {
-    //  }
+    // BgScare {
+    // }
 
     Volume {
     }
 
     NotificationBubble {
+    }
+
+    Bar {
+    }
+
+    AppLauncher {
+    }
+
+    PowerSettings {
     }
 
 }

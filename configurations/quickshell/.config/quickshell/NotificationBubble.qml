@@ -11,7 +11,7 @@ PanelWindow {
     margins.left: 15
     exclusiveZone: 0
     implicitWidth: 400
-    implicitHeight: 400
+    implicitHeight: 420
     WlrLayershell.namespace: "QSNotif"
     color: "transparent"
 
@@ -39,12 +39,10 @@ PanelWindow {
                 width: 400
                 height: 90
 
-                WrapperRectangle {
+                MultiBorderRectangle {
                     id: wrapRect
 
                     anchors.fill: parent
-                    border.color: "white"
-                    border.width: 1
                     color: "transparent"
                     layer.enabled: true // This helps the ShaderEffectSource capture it
 

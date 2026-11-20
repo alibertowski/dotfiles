@@ -50,19 +50,16 @@ Scope {
             color: "transparent"
             WlrLayershell.namespace: "QSVolumeOSD"
 
-            WrapperRectangle {
+            MultiBorderRectangle {
+                id: test
+
                 anchors.fill: parent
-                border.color: "white"
-                border.width: 2
 
                 AnimatedImage {
-                    source: "/home/retro/Downloads/Static2.gif"
+                    source: "/home/retro/media/images/lain/Static2.gif"
                     fillMode: Image.Tile
 
-                    Text {
-                        font.family: "Hack Nerd Font Mono"
-                        color: "#f4f4f4"
-                        font.pointSize: 11
+                    TerminalText {
                         anchors.centerIn: parent
                         font.hintingPreference: Font.PreferFullHinting
                         text: {

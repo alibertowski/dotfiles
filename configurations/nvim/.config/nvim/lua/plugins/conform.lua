@@ -19,8 +19,7 @@ return {
 			luau = {
 				"stylua",
 			},
-			http = { lsp_format = "prefer" },
-			json = { "prettier" },
+			json = { "jq" },
 			qml = { "qmlformat" },
 			javascript = { "prettier" },
 			rust = { "rustfmt" },
